@@ -11,6 +11,9 @@
     :Field Public ImageDataOffset
     :Field Public Bytes
 
+    :Field Public WriteData
+    :Field Public WriteBytes
+
     ∇ open path;offset;w;h;bytes;data;size;DIPHeaderSize
         :Implements Constructor
         :Access Public
@@ -47,8 +50,10 @@
 
         dataLength←ImageWidth×ImageHeight×Bytes
         data←(dataLength⍴⍉(Bytes (ImageWidth×ImageHeight)⍴ImageTable)),(Bytes|dataLength+ImageDataOffset)⍴0
+        WriteData←data
 
         binaryData←(8×dataLength)⍴⍉(8⍴2)⊤data
+        WriteBytes←binaryData
 
         tie←path ⎕NCREATE 0
         BMPHeader ⎕NREPLACE tie 0 83
@@ -62,7 +67,8 @@
         :Access Private Shared
 
         coeff←(○2×s*2)*¯0.5
-        R←coeff×*(-X*2)÷2×s*2
+        R1←coeff×*(-X*2)÷2×s*2
+        R←R1÷(+/R1)
     ∇
 
     ∇ R←PX createConvolutionMatrix N;M;A
@@ -73,15 +79,27 @@
         R←⍉(0,-⍳N-1)⌽A
     ∇
 
-    ∇ R←gaussianBlur (PX r s);GX;PY;A;R1
-        :Access Public
+    ∇ R←gaussianBlurPass (PX r s);GX;PY;A;R1
+        :Access Private Shared
 
-        GX←(⍳1+r×2)-r-1
+        GX←(((⍳1+r×2)-(r+1))÷r)×3×s
         PY←createGauss GX s
 
-        A←PX createConvolutionMatrix r
+        A←PX createConvolutionMatrix (r×2)+1
         R1←A+.×PY
-        R←R1[(⍳(⍴R1)-2)+1]
+        R←R1[(⍳(⍴R1)-r×2)+r]
+    ∇
+
+    ∇ R←gaussianBlur (r s);GX;PY;A;R1;I;J;K
+        :Access Public
+        :For I :In ⍳Bytes
+          :For J :In ⍳ImageWidth
+            ImageTable[I;;J]←⌊gaussianBlurPass ImageTable[I;;J] r s
+          :EndFor
+          :For K :In ⍳ImageHeight
+            ImageTable[I;K;]←⌊gaussianBlurPass ImageTable[I;K;] r s
+          :EndFor
+        :EndFor
     ∇
 
 
