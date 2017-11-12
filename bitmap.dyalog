@@ -63,8 +63,8 @@
         ⎕NUNTIE tie
     ∇
 
-    ∇ R←createGauss (X s);coeff
-        :Access Private Shared
+    ∇ R←createGauss (X s);coeff;R1
+        :Access Public
 
         coeff←(○2×s*2)*¯0.5
         R1←coeff×*(-X*2)÷2×s*2
@@ -72,15 +72,15 @@
     ∇
 
     ∇ R←PX createConvolutionMatrix N;M;A
-        :Access Private Shared
+        :Access Public
 
         M←⍴PX
         A←((N,M)⍴PX),(N,N-1)⍴0
         R←⍉(0,-⍳N-1)⌽A
     ∇
 
-    ∇ R←gaussianBlurPass (PX r s);GX;PY;A;R1
-        :Access Private Shared
+    ∇ R←gaussianBlurPass PX;GX;PY;A;R1;r;s
+        :Access Public
 
         GX←(((⍳1+r×2)-(r+1))÷r)×3×s
         PY←createGauss GX s
@@ -90,16 +90,11 @@
         R←R1[(⍳(⍴R1)-r×2)+r]
     ∇
 
-    ∇ R←gaussianBlur (r s);GX;PY;A;R1;I;J;K
+    ∇ R←gaussianBlur MAT;R1
         :Access Public
-        :For I :In ⍳Bytes
-          :For J :In ⍳ImageWidth
-            ImageTable[I;;J]←⌊gaussianBlurPass ImageTable[I;;J] r s
-          :EndFor
-          :For K :In ⍳ImageHeight
-            ImageTable[I;K;]←⌊gaussianBlurPass ImageTable[I;K;] r s
-          :EndFor
-        :EndFor
+
+        R1←⍉(⍴MAT) ⍴⊃,/gaussianBlurPass¨ ,/MAT
+        R←⍉(⍴R1) ⍴⊃,/gaussianBlurPass¨ ,/R1
     ∇
 
 
