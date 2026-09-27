@@ -2,7 +2,7 @@
 
 Build a reliable Dyalog image-processing library and an animated explainer that makes its array operations visible. The first release should take a reader from pixels to Gaussian blur and Sobel edges; later releases introduce nonlinear filters, statistics, regions, and dynamic programming.
 
-Completed items are checked below. The Gaussian core and BMP adapter are implemented and tested; Sobel and sharpening are also implemented. The frontend is a linear illustrated walkthrough; median filtering and binary morphology now have a second article. Histogram equalization has a third article; regions and later operations remain planned. See [the source review](docs/library-review.md) for the initial findings and [local setup](docs/development.md) for runtime instructions.
+Completed items are checked below. The Gaussian core and BMP adapter are implemented and tested; Sobel and sharpening are also implemented. The frontend is a linear illustrated walkthrough; median filtering and binary morphology now have a second article. Histogram equalization has a third article; flood fill and connected regions have a fourth. Canny and seam carving remain planned. See [the source review](docs/library-review.md) for the initial findings and [local setup](docs/development.md) for runtime instructions.
 
 ## 0. Establish a runnable baseline
 
@@ -75,7 +75,9 @@ Start with a full 3×3 structuring element, then add a cross-shaped mask. Show a
 - [x] Implement grayscale histogram equalization with inspectable counts, running totals, mapping, and output; preserve constant images.
 - [x] Verify 28 Dyalog cases against independent Python results and export intermediate arrays for browser parity checks.
 - [x] Add **Counting the light**, teaching comparisons, Each, scan, and lookup with counting, cumulative totals, mapping, and image/histogram comparisons.
-- [ ] Add flood fill and connected-component labeling, with explicit connectivity and propagation animations.
+- [x] Add flood fill and connected-component labeling, with explicit connectivity and propagation animations.
+- [x] Compare 288 cases against breadth-first search, including fill distances, counts, areas, and every browser propagation step.
+- [x] Add **Until nothing changes**, teaching Boolean masks, Power, match, unique labels, and region areas.
 
 **Done when:** the demo distinguishes local neighborhood rules from whole-image statistics and iteration. Histogram equalization initially operates on grayscale only.
 

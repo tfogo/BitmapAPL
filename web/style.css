@@ -8,3 +8,6 @@ button[aria-pressed=true]{background:#ededf8;border-color:var(--accent)}
 @media(max-width:520px){#sorting{height:260px}#noise{height:180px}#morph{height:260px}#composition{height:310px}.button-row button{font-size:13px}}
 #counting{height:320px}#scanning{height:280px}#mapping{height:280px}#contrast-image{height:370px}#contrast-histograms{height:310px}
 @media(max-width:520px){#contrast-image{height:260px}}
+.control select{width:100%;font:inherit;font-size:14px;color:var(--ink);background:#fcfcfc;border:1px solid #d7d8df;border-radius:6px;padding:9px}.control select:focus-visible{outline:3px solid #b08a37;outline-offset:4px}
+#fill-grid,#labels-grid{height:340px}.region-summary{min-height:220px;font-size:14px;margin:24px auto 0;max-width:330px;color:var(--muted)}.region-summary table{width:100%;border-collapse:collapse}.region-summary th,.region-summary td{padding:5px 12px;border-bottom:1px solid #e4e4e8}.region-summary caption{margin-bottom:10px;color:var(--ink)}
+@media(max-width:520px){#fill-grid,#labels-grid{height:290px}}

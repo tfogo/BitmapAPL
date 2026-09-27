@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Until nothing changes — Bitmap APL</title><meta name="description" content="Explore APL masks, repeated functions, and convergence through flood fill and connected regions."><link rel="stylesheet" href="style.css"></head>
+<body><header><a href="./">Bitmap APL</a><span>An illustrated introduction · 4</span></header>
+<main><article>
+<div class="opening"><p class="kicker">MASKS, REPETITION, AND REGIONS</p><h1>Until nothing changes</h1><p class="lede">Repeat a small step, and let a shape tell us when to stop.</p></div>
+<p>Imagine clicking the paint bucket in an image editor. The fill spreads from your chosen pixel, but stops at a boundary. How can a program find all the pixels it should reach?</p>
+<p>We’ll start with a binary picture: 1 means we may enter a cell; 0 means we may not. We also need a second array to remember where the fill has reached.</p>
+<section><h2>Grow, then keep only what is allowed</h2>
+<p>In <a href="neighborhoods.html">the neighborhood article</a>, dilation grew a shape by one layer. We can reuse it here. Grow the filled area, then keep only cells that are inside the allowed mask.</p>
+<pre><code>next ← allowed∧grown</code></pre>
+<p><code>∧</code> means <em>and</em>. A cell is 1 only when both arrays have a 1 there. It combines the two arrays position by position.</p>
+<p>Try one step below. Then another. Orange marks the newest cells; purple marks cells reached earlier. The ring marks the starting pixel.</p>
+<figure><canvas id="fill-grid" role="img" aria-label="A flood spreads through allowed cells from a selected seed. Orange marks the new frontier, purple earlier cells, and gray unfilled allowed cells."></canvas>
+<div class="control"><label for="fill-seed">Starting pixel · row, column from zero</label><select id="fill-seed"><option value="1,1">1, 1 · left ring</option><option value="1,6">1, 6 · upper right</option><option value="4,6">4, 6 · lower right</option><option value="0,0">0, 0 · background</option></select></div>
+<div class="button-row"><button id="fill-connectivity" aria-pressed="false">Include diagonal neighbors</button></div>
+<div class="control"><label for="fill-step">Spread the fill · step <output id="fill-step-value">0</output></label><input id="fill-step" type="range" min="0" max="1" step="1" value="0"><span class="ends"><span>Seed</span><span>Nothing more to reach</span></span></div><figcaption id="fill-caption" aria-live="polite"></figcaption></figure>
+<p>With four neighbors, we can move up, down, left, or right. With eight, we can also cross a corner. The small tail below the ring touches it diagonally. Change the rule and watch whether the fill reaches it.</p>
+<p>This is a choice about what <em>connected</em> means. The image alone does not settle it. In both cases, the outside of the image is background; the fill never wraps around an edge.</p>
+<h2>Give the step a name</h2>
+<p>Here is a small mask we can try in APL. The zeros block the fill. The ones form a single bent path.</p>
+<pre><code>⎕IO ← 0
+allowed ← 3 5⍴1 1 1 1 1 0 0 0 0 1 1 1 1 1 1
+start ← 3 5⍴0
+start[0;0] ← 1
+Grow ← {allowed∧('dilate' 'cross') ImageOps.Morphology ⍵}</code></pre>
+<p><code>Grow</code> takes the current fill and returns the next one. The cross gives us four neighbors. The allowed mask stops it from jumping across the gap.</p>
+<pre><code>Grow start              ⍝ one step
+Grow Grow start         ⍝ two steps</code></pre>
+<p>APL has an operator for repetition, <code>⍣</code>, called <em>Power</em>. Put a number on its right to choose how many times the function runs.</p>
+<pre><code>(Grow⍣2) start          ⍝ the same two steps</code></pre>
+<h2>Let the result decide when to stop</h2>
+<p>We usually do not know how many steps the fill will need. But we know when it is done: the next array is the same as the current one.</p>
+<p><code>≡</code>, called <em>match</em>, compares whole arrays. Unlike <code>=</code>, it gives one answer about their shape and contents. Put it after Power and it becomes the stopping test.</p>
+<pre><code>filled ← (Grow⍣≡) start</code></pre>
+<p>Power applies <code>Grow</code>, compares the new result with the previous one, and repeats until they match.</p>
+<p>This fill only adds cells. It never removes them, and there are finitely many cells in the mask. Eventually there is nothing new to reach. A different repeated function might oscillate forever; stopping is a property we must check.</p>
+<pre><code>filled ← (4 (0 0)) ImageOps.FloodFill allowed</code></pre>
+<p>The library takes the connectivity and a zero-based starting coordinate. A starting pixel on background returns an empty fill.</p>
+</section>
+<section><h2>Find every region at once</h2>
+<p>A fill answers a question about one starting pixel. What if we want to find every separate object?</p>
+<p>Give each foreground pixel a different positive number. At every step, each pixel takes the smallest positive number among itself and its neighbors. Background cells keep zero and do not pass labels on.</p>
+<figure><canvas id="labels-grid" role="img" aria-label="Unique pixel labels propagate to neighbors until each connected region shares its smallest original label."></canvas>
+<div class="button-row"><button id="labels-connectivity" aria-pressed="false">Include diagonal neighbors</button></div>
+<div class="control"><label for="labels-step">Pass labels to neighbors · step <output id="labels-step-value">0</output></label><input id="labels-step" type="range" min="0" max="1" step="1" value="0"><span class="ends"><span>One label per pixel</span><span>One label per region</span></span></div><figcaption id="labels-caption" aria-live="polite"></figcaption>
+<div id="region-summary" class="region-summary"></div></figure>
+<p>The numbers make the process visible. Small labels spread along paths. Eventually, every pixel in a region has the same label: the smallest one that region started with.</p>
+<p>Each step reads the previous array and writes a new array. That is why a label travels at most one neighbor per step. Updating cells in place would produce a different animation.</p>
+<pre><code>initial ← allowed×(⍴allowed)⍴1+⍳≢,allowed
+Spread ← {4 ImageOps.LabelStep ⍵}
+labels ← (Spread⍣≡) initial</code></pre>
+<p><code>,allowed</code> makes a list, and <code>≢</code> counts its elements. We generate that many labels, starting at 1, and reshape them to match the picture. Multiplying by the mask keeps the background at zero.</p>
+<p>The step uses a minimum reduction, <code>⌊/</code>, over selected neighbors. It ignores zero labels and never writes into the background. The same repeat-until-matched expression finishes the job.</p>
+<h2>Count the things we found</h2>
+<p>The labels tell us which pixels belong together. To count regions, first remove background zeros, then keep one copy of each label.</p>
+<pre><code>flat ← ,labels
+foreground ← (flat&gt;0)/flat
+ids ← ∪foreground</code></pre>
+<p><code>∪</code>, called <em>unique</em> in this use, removes repetitions. If a label appears on twenty pixels, it still appears only once in <code>ids</code>.</p>
+<pre><code>≢ids                    ⍝ number of regions
+areas ← {+/flat=⍵}¨ids   ⍝ pixels carrying each label</code></pre>
+<p>These are the same comparison, sum, and Each that counted brightness values in <a href="contrast.html">the previous article</a>. This time we count labels.</p>
+<pre><code>regions ← 4 ImageOps.Components allowed
+regions.labels
+regions.ids
+regions.areas
+regions.count</code></pre>
+<p>The library returns sorted IDs with their areas. IDs need not be consecutive: they preserve the smallest original pixel label in each region. Switching to eight neighbors can merge regions and change both counts and areas.</p>
+<aside>These algorithms are meant to make array operations clear. They revisit the whole image at each step. A long winding path can take many steps; queue-based flood fill and other labeling algorithms can be faster.</aside>
+<p>We used masks to control where a change could go, and Power to keep applying it until it stopped. That pattern will be useful again when we follow weak edges connected to stronger ones.</p>
+</section>
+<footer><h2>About this walkthrough</h2><p>The browser model matches 288 executed Dyalog cases, including every propagation step. An independent breadth-first search checks the final labels, areas, and fill distances. The browser does not execute APL.</p><p>All motion is controlled by sliders. Color helps distinguish labels, but the label numbers and region table carry the same information. The browser keeps traces only for these small teaching examples.</p><p><a href="contrast.html">← Counting the light</a> · <a href="./">Start with APL</a></p></footer>
+</article></main><script type="module" src="regions.mjs"></script>
+</body></html>

@@ -61,6 +61,7 @@ result.output</code></pre>
 <aside>This example works on grayscale. Applying different mappings to red, green, and blue can change a picture’s colors. Color equalization needs a separate choice about which quantity to change.</aside>
 <p>We used <code>=</code> to ask a question, <code>¨</code> to ask it of each level, <code>+&#92;</code> to keep running totals, and indexing to apply the answer. A few array operations carried us from counting pixels to changing a whole picture.</p>
 </section>
+<nav class="next-article" aria-label="Next article"><a href="regions.html">Next: Until nothing changes →</a><p>Grow a fill, pass labels between neighbors, and count connected regions.</p></nav>
 <footer><h2>About this walkthrough</h2><p>The browser model is checked against 28 executed Dyalog cases, including counts, running totals, mappings, and output pixels. It does not execute APL in the browser. The count animation illustrates accumulation; it does not show the interpreter’s execution order. All motion is controlled by the sliders.</p><p>The landscape is generated from fixed shapes and brightness gradients. The mapping subtracts the first occupied cumulative count, scales to 0–255, and rounds halves up. Constant images remain unchanged.</p><p><a href="neighborhoods.html">← Choosing a neighbor</a> · <a href="./">Start with APL</a></p></footer>
 </article></main><script type="module" src="contrast.mjs"></script>
 </body></html>

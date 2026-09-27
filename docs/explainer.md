@@ -63,3 +63,11 @@ Verified in the browser: the grade order and middle value, noise control, erosio
 The page explicitly distinguishes this global mapping from neighborhood filters, explains CDF-min normalization and rounding, and leaves constant images unchanged. All diagrams use the tested browser model. Fixtures include 28 Dyalog equalization cases with all intermediate arrays. Sliders control motion directly; the accumulating-pixel animation illustrates the idea, not interpreter scheduling.
 
 Verified all displayed third-article code blocks by executing them together in Dyalog. Browser checks cover completed counts, the final running total, lookup of an unoccupied bin, the full equalized image, and a 390px layout without horizontal overflow.
+
+## Fourth article: Until nothing changes
+
+`web/regions.html` and `web/regions.mjs` reuse dilation to explain constrained growth, then introduce Power with a numeric iteration count and match as a stopping test. A seed selector includes a background seed; four/eight-neighbor controls expose diagonal connectivity. A second diagram propagates minimum positive labels synchronously and shows a region-area table at convergence. Numbered labels supplement color.
+
+The browser's final results and all trace states are checked against 288 Dyalog cases. Independent Python breadth-first search checks region membership, IDs, areas, and the distances that determine flood-fill frames. APL keeps only current working arrays; browser functions retain traces for small teaching fixtures. The page explains finite monotone convergence and the cost of rescanning an image.
+
+Verified the fourth article’s code blocks in Dyalog and its browser controls: four-neighbor fill reaches 8 cells, eight-neighbor fill reaches 10, a background seed stays empty, and the final area table changes from four regions to three while preserving 17 foreground pixels. Checked a 390px layout without horizontal overflow.

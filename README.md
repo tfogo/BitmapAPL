@@ -178,3 +178,5 @@ See [explainer development notes](docs/explainer.md) for the UI checks and remai
 The second article, [Choosing a neighbor](http://127.0.0.1:8765/neighborhoods.html), introduces ravel, grade, indexing, Boolean selection, maximum/minimum reductions, and composition through median filtering and binary shapes.
 
 The third article, [Counting the light](http://127.0.0.1:8765/contrast.html), teaches comparisons, Each, scan, and indexing through histogram equalization.
+
+The fourth article, [Until nothing changes](http://127.0.0.1:8765/regions.html), teaches masks, Power, convergence, unique labels, and region areas through flood fill and connected components.
