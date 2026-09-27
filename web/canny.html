@@ -1,0 +1,45 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Following an edge — Bitmap APL</title><meta name="description" content="Build Canny edge detection from APL smoothing, comparisons, masks, and repeated growth."><link rel="stylesheet" href="style.css"></head><body>
+<header><a href="./">Bitmap APL</a><span>An illustrated introduction · 5</span></header><main><article>
+<div class="opening"><p class="kicker">SMALL OPERATIONS, ONE PIPELINE</p><h1>Following an edge</h1><p class="lede">Keep a thin line. Follow its faint parts. Leave the rest behind.</p></div>
+<p>Sobel tells us where brightness changes. Its response is often a broad band, and small changes in texture can produce edges too. Canny turns that response into a thinner set of connected lines.</p>
+<p>We already have most of its parts: a blur, gradients, comparisons, and a fill that repeats until nothing changes. Here is what they do together.</p>
+<figure><canvas id="canny-pipeline" role="img" aria-label="Six synchronized stages: source, Gaussian smoothing, Sobel magnitude, thinning, strong and weak classification, and linked binary edges."></canvas><div class="control"><label for="canny-low">Low threshold · <output id="canny-low-value">35</output></label><input id="canny-low" type="range" min="1" max="250" step="1" value="35"></div><div class="control"><label for="canny-high">High threshold · <output id="canny-high-value">100</output></label><input id="canny-high" type="range" min="1" max="500" step="1" value="100"></div><figcaption id="pipeline-caption" aria-live="polite"></figcaption></figure>
+<p>The thresholds use Sobel magnitude units, not displayed gray levels. Moving one past the other moves its partner too, keeping the low threshold no higher than the high one. The blur stays fixed: radius 2, sigma 1, with clamped borders.</p>
+<section><h2>A gradient has a direction</h2>
+<p>The horizontal and vertical Sobel responses tell us which way brightness changes most quickly. This direction points <em>across</em> an edge. It is not the direction we would travel to follow the line.</p>
+<pre><code>smooth ← (2 1 'clamp') ImageOps.BlurPlane picture
+gradient ← 'clamp' ImageOps.Sobel smooth
+magnitude ← ((gradient.gx*2)+gradient.gy*2)*0.5</code></pre>
+<p>For this version, we round the direction to horizontal, vertical, or one of two diagonals. That tells us which two neighboring magnitudes to compare.</p>
+<h2>Keep the top of the ridge</h2>
+<p>Here is a slice across a broad edge response. Select a bar. We keep it only if it is at least as high as the bar before it and higher than the bar after it.</p>
+<figure><canvas id="thinning" role="img" aria-label="A selected gradient magnitude is compared with the two neighbors across the edge. An asymmetric tie rule keeps one of two equal peaks."></canvas><div class="control"><label for="thin-position">Inspect a candidate</label><input id="thin-position" type="range" min="1" max="5" step="1" value="3"><span class="ends"><span>Left side</span><span>Right side</span></span></div><figcaption id="thin-caption" aria-live="polite"></figcaption></figure>
+<pre><code>keep ← (middle≥before)∧middle&gt;after</code></pre>
+<p>This is <em>non-maximum suppression</em>. The two equal peaks show why we need a tie rule: our rule keeps the later one. It chooses a side rather than leaving the whole flat ridge.</p>
+<p>The library makes those comparisons along each pixel’s quantized direction. It discards the outer border, where one of the samples would be missing.</p>
+<pre><code>suppressed ← ImageOps.NonMax gradient
+thin ← suppressed.thin</code></pre>
+<aside>The implementation uses a tolerance of 10⁻¹⁰ in comparisons to ignore tiny floating-point differences. It compares neighboring samples directly; it does not interpolate between directions. Different Canny implementations can make different choices here.</aside>
+<h2>Two thresholds ask two questions</h2>
+<p>A high threshold marks pixels we trust as starting points. A lower threshold marks the pixels we are willing to follow.</p>
+<pre><code>low ← 35 ⋄ high ← 100
+strong ← thin≥high
+allowed ← thin≥low</code></pre>
+<p>Both comparisons make Boolean arrays. The allowed mask includes the strong pixels. The remaining allowed pixels are weak candidates: we keep them only if there is a path to a strong one.</p>
+<p>In the small example below, the strong sample has magnitude 120. The weak samples have magnitude 60. With thresholds 30 and 90, only the left chain has a strong starting point.</p>
+<figure><canvas id="edge-linking" role="img" aria-label="A strong edge of magnitude 120 grows through connected weak edges of magnitude 60. A separate weak island stays unaccepted."></canvas><div class="control"><label for="link-step">Follow the weak chain</label><input id="link-step" type="range" min="0" max="1" step="1" value="0"><span class="ends"><span>Strong seed</span><span>Connected edges</span></span></div><figcaption id="link-caption" aria-live="polite"></figcaption></figure>
+<p>Purple cells are accepted. Orange cells are still weak candidates. Numbers show the input magnitudes. The separate island stays orange even when the connected chain is complete.</p>
+<h2>Reuse the fill</h2>
+<p>This is the same constrained growth we used for flood fill, except that we start with <em>every</em> strong pixel at once. A square neighborhood gives eight-neighbor connectivity.</p>
+<pre><code>Grow ← {allowed∧('dilate' 'square') ImageOps.Morphology ⍵}
+edges ← (Grow⍣≡) strong</code></pre>
+<p>When a step changes nothing, we are done. This linking stage is called <em>hysteresis thresholding</em>. It lets a faint stretch of an edge survive because it connects to a stronger stretch.</p>
+<pre><code>result ← (2 1 35 100) ImageOps.Canny picture
+result.smoothed ⋄ result.magnitude ⋄ result.thin
+result.strong ⋄ result.weak ⋄ result.edges</code></pre>
+<p>Try the thresholds at the top again. With the blur fixed, raising either threshold can only remove accepted pixels. It cannot add a new path.</p>
+<p>Canny still makes mistakes. Texture can look like an edge, noise can break a line, and weak meaningful edges may never reach a strong seed. The stages make those choices visible instead of hiding them in one call.</p>
+<p>APL’s contribution here is composition: each stage returns arrays the next stage can use. We can stop between stages, inspect a value, or replace one step.</p></section>
+<nav class="next-article" aria-label="Next article"><a href="seams.html">Next: A path through a picture →</a><p>Use cumulative costs to choose what an image can lose.</p></nav>
+<footer><h2>About this walkthrough</h2><p>Thirty pipelines and five linking fixtures are checked against an independent Python reference. The browser agrees with exported Dyalog results. Magnitude and thinned views share a display scale; the classification view uses purple for strong and orange for weak-only candidates.</p><p>The pipeline follows the stages in <a href="https://docs.opencv.org/4.x/da/d22/tutorial_py_canny.html">OpenCV’s Canny overview</a>, with this project’s explicit border, direction, and tie rules. The browser runs a checked JavaScript model.</p><p><a href="regions.html">← Until nothing changes</a></p></footer>
+</article></main><script type="module" src="canny.mjs"></script></body></html>

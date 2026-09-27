@@ -1,0 +1,49 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>A path through a picture — Bitmap APL</title><meta name="description" content="Explore seam carving, cumulative path costs, backtracking, and APL Boolean compression with interactive diagrams."><link rel="stylesheet" href="style.css"></head><body>
+<header><a href="./">Bitmap APL</a><span>An illustrated introduction · 6</span></header><main><article>
+<div class="opening"><p class="kicker">MINIMUM COSTS AND CHOOSING A PATH</p><h1>A path through a picture</h1><p class="lede">Make an image narrower by choosing which pixels to leave out.</p></div>
+<p>Ordinary resizing squeezes everything. Cropping cuts away a border. Seam carving takes a different route: remove one connected path from top to bottom, then close the gap.</p>
+<p>The path, or <em>seam</em>, contains one pixel in each row. Between rows it can move one column left, stay in place, or move one column right.</p>
+<section><h2>Give each pixel a cost</h2>
+<p>We need a way to choose what to remove. Here we reuse Sobel magnitude: a pixel near a sharp brightness change gets a high cost. A pixel in a smooth area gets a low one.</p>
+<pre><code>energy ← ImageOps.Energy picture</code></pre>
+<p>This cost is often called <em>energy</em>. It is a rough guide, not an understanding of the picture. A faint face can matter more than a strong edge.</p>
+<h2>Remember the cheapest way here</h2>
+<p>Choosing the cheapest pixel in each row would let the path jump across the image. Instead, ask each pixel: what is the cheapest connected path that ends here?</p>
+<p>On the first row, the answer is just the pixel’s own energy. On the next row, add that energy to the smallest cost among the possible predecessors above it.</p>
+<figure><canvas id="seam-costs" role="img" aria-label="A small energy table builds a cumulative-cost table row by row, highlighting candidate predecessors for one selected cell."></canvas><div class="control"><label for="cost-row">Build through row</label><input id="cost-row" type="range" min="0" max="3" step="1" value="1"><span class="ends"><span>First</span><span>Last</span></span></div><div class="control"><label for="cost-column">Inspect a column</label><input id="cost-column" type="range" min="0" max="4" step="1" value="2"><span class="ends"><span>Left edge</span><span>Right edge</span></span></div><figcaption id="cost-caption" aria-live="polite"></figcaption></figure>
+<p>Only two predecessors exist at a side edge. We leave the missing one out; we do not wrap around to the other side.</p>
+<pre><code>candidateCosts ← previous[candidates]
+best ← ⌊/candidateCosts
+next[x] ← energy[y;x]+best</code></pre>
+<p>APL’s minimum reduction, <code>⌊/</code>, chooses the cheapest predecessor. Indexing selects the relevant costs. The library repeats this calculation across each row, carrying the cumulative costs downward.</p>
+<p>This is <em>dynamic programming</em>. We keep the answer to each smaller problem—the cheapest path to a pixel—so we do not have to enumerate every complete path.</p>
+<pre><code>path ← ImageOps.MinimumSeam energy
+path.cost               ⍝ cumulative costs
+path.parents            ⍝ chosen predecessor columns</code></pre>
+<h2>Walk backward, then remove</h2>
+<p>The cheapest entry in the last row tells us where the winning seam ends. Follow its saved predecessor upward until we reach the first row.</p>
+<figure><canvas id="seam-backtrack" role="img" aria-label="The cheapest seam is traced upward through a numeric grid, then removed as each row closes its gap."></canvas><div class="control"><label for="seam-stage">Trace the path and close the gap</label><input id="seam-stage" type="range" min="0" max="5" step="0.01" value="0"><span class="ends"><span>Find the end</span><span>Trace upward</span><span>Remove</span></span></div><figcaption id="seam-caption" aria-live="polite"></figcaption></figure>
+<p>If several paths have the same cost, we need a predictable answer. This implementation chooses the lowest predecessor column on a tie, then the lowest endpoint column in the last row.</p>
+<pre><code>seam ← path.seam
+narrower ← seam ImageOps.RemoveSeam picture</code></pre>
+<p>There is one column index per row. We can turn those indices into a Boolean mask and use compress to keep everything else.</p>
+<pre><code>⎕IO ← 0
+height width ← ⍴picture
+keep ← ⍉(⍳width)∘.≠seam
+narrower ← (height (width-1))⍴(,keep)/,picture</code></pre>
+<p><code>∘.≠</code> compares every column number with every seam entry. This <em>outer product</em> makes a table of comparisons. After transposing, each row has a zero at the pixel to remove. Ravel, compress, and reshape close the gaps.</p>
+<h2>Choose again after every cut</h2>
+<p>Removing a seam changes which pixels touch. We must compute a new energy map before choosing the next path.</p>
+<pre><code>result ← (8 'vertical') ImageOps.Carve picture
+result.output
+result.seams</code></pre>
+<p>Try narrowing the scene below. The purple path is the next seam the algorithm would remove. The middle image keeps its original pixel scale. The last image squeezes the whole source to the same dimensions. Switch the first view to energy: darker purple means a higher cost.</p>
+<figure><canvas id="seam-image" role="img" aria-label="A generated image is compared with repeated seam removal and ordinary resizing. A purple path marks the next seam."></canvas><div class="control"><label for="seam-scene">Picture</label><select id="seam-scene"><option value="object">Object with smooth surroundings</option><option value="stripes">Repeated vertical lines</option><option value="dense">Dense checkerboard</option></select></div><div class="button-row"><button id="energy-view" aria-pressed="false">Show the energy map</button></div><div class="button-row"><button id="seam-axis" aria-pressed="false">Remove horizontal seams</button></div><div class="control"><label for="seam-count">Seams removed · <output id="seam-count-value">0</output></label><input id="seam-count" type="range" min="0" max="16" step="1" value="0"><span class="ends"><span>Original size</span><span>16 removed</span></span></div><figcaption id="carve-caption" aria-live="polite"></figcaption></figure>
+<p>Horizontal removal needs the same algorithm. Transpose the picture, carve vertically, and transpose back.</p>
+<pre><code>shorter ← (8 'horizontal') ImageOps.Carve picture</code></pre>
+<p>Try the repeated lines and checkerboard. These pictures have little empty space to spare. Paths can erase patterns or bend boundaries. Even in the simpler scene, enough removals eventually reach the object.</p>
+<p>This version uses <em>backward energy</em>: the gradients already in the picture. It does not score the new edges created by a removal. More advanced variants account for that cost, protect selected regions, or combine carving with resizing.</p>
+<aside>The demo uses small grayscale images and caps removal at 16 seams. The library always keeps at least one row or column. A returned seam uses coordinates from its own removal step, because the picture changes after every cut.</aside>
+<p>We began with arrays of pixel values. Now we have arrays that describe choices: costs, predecessors, paths, and masks. The same APL ideas—indexing, reduction, transpose, and compression—still do the work.</p></section>
+<footer><h2>About this walkthrough</h2><p>Thirty tiny energy maps are checked by enumerating every possible connected path. Eighteen repeated carvings check both orientations and recompute energy after each cut. The browser agrees with executed Dyalog results, including cost tables and tie-breaking.</p><p>The method follows the idea of Avidan and Shamir’s <a href="https://cs.brown.edu/courses/cs016/static/files/docs/seamcarving_original_paper.pdf">Seam Carving for Content-Aware Image Resizing</a>. This implementation uses clamped Sobel L2 magnitude as its energy. The generated scenes and diagrams are original.</p><p><a href="canny.html">← Following an edge</a> · <a href="array-tools.html">Color, detail, and array notation →</a></p></footer>
+</article></main><script type="module" src="seams.mjs"></script></body></html>

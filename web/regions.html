@@ -70,6 +70,7 @@ regions.count</code></pre>
 <aside>These algorithms are meant to make array operations clear. They revisit the whole image at each step. A long winding path can take many steps; queue-based flood fill and other labeling algorithms can be faster.</aside>
 <p>We used masks to control where a change could go, and Power to keep applying it until it stopped. That pattern will be useful again when we follow weak edges connected to stronger ones.</p>
 </section>
+<nav class="next-article" aria-label="Next article"><a href="canny.html">Next: Following an edge →</a><p>Put smoothing, thinning, and connected growth together.</p></nav>
 <footer><h2>About this walkthrough</h2><p>The browser model matches 288 executed Dyalog cases, including every propagation step. An independent breadth-first search checks the final labels, areas, and fill distances. The browser does not execute APL.</p><p>All motion is controlled by sliders. Color helps distinguish labels, but the label numbers and region table carry the same information. The browser keeps traces only for these small teaching examples.</p><p><a href="contrast.html">← Counting the light</a> · <a href="./">Start with APL</a></p></footer>
 </article></main><script type="module" src="regions.mjs"></script>
 </body></html>

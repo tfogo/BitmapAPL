@@ -1,0 +1,52 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Color, detail, and array notation — Bitmap APL</title><meta name="description" content="Explore color planes, reversal, thresholds, signed gradients, sharpening, and inner products in APL."><link rel="stylesheet" href="style.css"></head><body>
+<header><a href="./">Bitmap APL</a><span>More array tools</span></header><main><article>
+<div class="opening"><p class="kicker">THE SAME IDEAS, MORE PLACES TO USE THEM</p><h1>Color, detail,<br>and array notation</h1><p class="lede">A few more ways to put arrays to work on a picture.</p></div>
+<p>The main walkthrough began with grayscale so each pixel needed just one number. Color adds another axis. Other operations change positions, compare values, or combine two images. The array ideas still apply.</p>
+<section><h2>Three planes make a color</h2>
+<p>For this example, store red, green, and blue as three planes of the same size. The array’s shape is <code>3 height width</code>. Indexing can select one plane.</p>
+<pre><code>⎕IO ← 0
+red ← image[0;;]
+green ← image[1;;]
+blue ← image[2;;]</code></pre>
+<p>The semicolons separate axes. Leaving an axis empty selects all its positions. Change the selected plane below. The grayscale view shows that channel’s numeric intensity.</p>
+<figure><canvas id="color-planes" role="img" aria-label="A generated RGB image and a selected red, green, or blue plane, with independently applied blur."></canvas><div class="control"><label for="color-plane">Inspect a plane</label><select id="color-plane"><option value="0">Red</option><option value="1">Green</option><option value="2">Blue</option></select></div><div class="control"><label for="color-sigma">Blur each plane · sigma <output id="color-sigma-value">0</output></label><input id="color-sigma" type="range" min="0" max="3" step="0.1" value="0"><span class="ends"><span>Original</span><span>More spread</span></span></div><figcaption>The left view recombines all three planes. The right view shows one. Blurring a plane does not average it with another channel.</figcaption></figure>
+<pre><code>softColor ← (4 1 'clamp') ImageOps.BlurImage image</code></pre>
+<p>Inside this function, Rank applies the plane blur to each two-dimensional cell. The leading channel axis keeps the planes separate.</p>
+<aside>The BMP adapter stores B, G, R, and a fourth preserved byte. It filters only the three color planes. The teaching image here uses R, G, B order. The fourth BMP byte is not treated as transparency.</aside>
+<h2>Change positions with one symbol</h2>
+<p><code>⌽</code> reverses the last axis. In a matrix, that flips each row from left to right. The numbers keep their values.</p>
+<figure><canvas id="reverse-grid" role="img" aria-label="A three-by-four numeric array reverses its columns while preserving each value."></canvas><div class="control"><label for="reverse-step">Reverse each row</label><input id="reverse-step" type="range" min="0" max="1" step="0.01" value="0"><span class="ends"><span>Original</span><span>Reversed</span></span></div></figure>
+<pre><code>flipped ← ⌽picture</code></pre>
+<h2>A comparison draws a boundary</h2>
+<p>A threshold turns a grayscale image into a Boolean mask. Each value becomes 1 if it is at least the threshold, or 0 otherwise.</p>
+<figure><canvas id="threshold-grid" role="img" aria-label="Grayscale values are compared with a threshold and shown as a binary mask."></canvas><div class="control"><label for="threshold-level">Threshold · <output id="threshold-value">128</output></label><input id="threshold-level" type="range" min="0" max="255" step="1" value="128"></div><figcaption id="threshold-caption" aria-live="polite"></figcaption></figure>
+<pre><code>mask ← picture≥128</code></pre>
+<p>The comparison works on every value. A value exactly equal to the threshold is included. This is a simple starting point for the binary shapes used in the later articles.</p>
+<h2>Keep the sign of a change</h2>
+<p>A gradient can be negative. Reversing a brightness transition reverses its response. Taking a magnitude is useful for edge strength, but loses that direction information.</p>
+<figure><canvas id="signed-gradients" role="img" aria-label="A source image, signed horizontal and vertical Sobel responses, and their combined magnitude are revealed together."></canvas><div class="control"><label for="gradient-stage">Build the gradient</label><input id="gradient-stage" type="range" min="0" max="3" step="1" value="0"><span class="ends"><span>Source</span><span>Horizontal</span><span>Vertical</span><span>Magnitude</span></span></div><figcaption>Signed views: purple is positive, orange is negative, white is zero. Magnitude shows strength in grayscale. Both signed views use the same scale.</figcaption></figure>
+<pre><code>g ← 'clamp' ImageOps.Sobel picture
+g.gx ⋄ g.gy
+strength ← ((g.gx*2)+g.gy*2)*0.5</code></pre>
+<h2>Subtract a blur to find detail</h2>
+<p>Blur removes quick changes. Subtract the blurred image from the original and those changes remain as a signed detail layer. Add some of that layer back to make edges stronger.</p>
+<pre><code>soft ← (2 1 'clamp') ImageOps.BlurPlane picture
+detail ← picture-soft
+sharp ← picture+1.5×detail</code></pre>
+<figure><canvas id="sharpening" role="img" aria-label="An original shape, its signed detail layer, and the sharpened result with adjustable strength."></canvas><div class="control"><label for="sharp-amount">Detail added back · <output id="sharp-value">0</output>×</label><input id="sharp-amount" type="range" min="0" max="3" step="0.05" value="0"><span class="ends"><span>Original</span><span>Stronger edges</span></span></div><figcaption id="sharp-caption" aria-live="polite"></figcaption></figure>
+<p>This is <em>unsharp masking</em>. An amount of zero returns the original. Too much creates bright and dark halos and exaggerates noise.</p>
+<pre><code>sharp ← (2 1 1.5 'clamp') ImageOps.Unsharp picture</code></pre>
+<p>Negative values and values above 255 remain in the array. The display and BMP writer clip them to the visible range. Clipping inside the calculation would lose information.</p>
+<h2>Another way to write a weighted sum</h2>
+<p>We started the first article with multiplication followed by addition. APL can combine those two functions in an <em>inner product</em>.</p>
+<pre><code>weights ← 0.25 0.5 0.25
+neighbors ← 20 60 220
++/weights×neighbors     ⍝ 90
+weights+.×neighbors     ⍝ 90</code></pre>
+<p>The dot connects the two functions: multiply matching values, then add their results. With a matrix of windows, the same notation computes several outputs at once.</p>
+<pre><code>windows ← 2 3⍴20 60 220 60 220 60
+windows+.×weights       ⍝ 90 140</code></pre>
+<p>The library keeps a matrix version of the row filter as a teaching reference. Stencil avoids building that full window matrix. Both are checked against the same results; their speed depends on the array and window sizes.</p></section>
+<nav class="next-article" aria-label="Article series"><p>Read the series:</p><p><a href="./">Reading APL through pictures</a> · <a href="neighborhoods.html">Choosing a neighbor</a> · <a href="contrast.html">Counting the light</a> · <a href="regions.html">Until nothing changes</a> · <a href="canny.html">Following an edge</a> · <a href="seams.html">A path through a picture</a></p></nav>
+<footer><h2>About this walkthrough</h2><p>These diagrams use the same tested model as the main series. Color uses independent plane blurs; signed gradients and sharpening preserve floating-point values. The small fixtures make indexing and arithmetic visible.</p><p><a href="./">← Start with APL</a></p></footer>
+</article></main><script type="module" src="array-tools.mjs"></script></body></html>

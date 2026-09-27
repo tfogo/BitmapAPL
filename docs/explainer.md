@@ -34,7 +34,9 @@ The two-pass diagram blends between three computed arrays to expose their shapes
 
 ```sh
 python3 tests/run.py --export
-node --test tests/browser-model.test.mjs
+python3 tests/advanced.py --export
+python3 tests/articles.py
+node --test tests/*test.mjs
 ```
 
 The Dyalog suite is checked against an independent Python oracle before exporting results. Node checks the shared browser model against 72 blur and 24 Sobel/sharpening cases, plus rectangular transforms. The article uses a subset of this model. It does not run APL in the browser.
@@ -71,3 +73,21 @@ Verified all displayed third-article code blocks by executing them together in D
 The browser's final results and all trace states are checked against 288 Dyalog cases. Independent Python breadth-first search checks region membership, IDs, areas, and the distances that determine flood-fill frames. APL keeps only current working arrays; browser functions retain traces for small teaching fixtures. The page explains finite monotone convergence and the cost of rescanning an image.
 
 Verified the fourth article’s code blocks in Dyalog and its browser controls: four-neighbor fill reaches 8 cells, eight-neighbor fill reaches 10, a background seed stays empty, and the final area table changes from four regions to three while preserving 17 foreground pixels. Checked a 390px layout without horizontal overflow.
+
+## Completed series
+
+| Page | APL ideas and demonstrations |
+| --- | --- |
+| `index.html` | Lists, assignment, shape, whole-array arithmetic, transpose, reduction, Gaussian weights, rank |
+| `neighborhoods.html` | Ravel, grade, indexing, compress, maximum/minimum reductions, composition |
+| `contrast.html` | Comparisons, Each, cumulative scan, histogram lookup |
+| `regions.html` | Boolean masks, Power, match, label propagation, unique IDs and areas |
+| `canny.html` | Composition of smoothing, signed gradients, directional comparisons, thresholds, and constrained growth |
+| `seams.html` | Cumulative costs, predecessor indexing, backtracking, outer comparison, compression, transpose reuse |
+| `array-tools.html` | Color-plane indexing, reversal, thresholds, signed Sobel views, unsharp masking, inner products |
+
+The advanced diagrams share `article-diagrams.mjs`. Canny exposes both thresholds while keeping smoothing fixed; its six panels update together. The seam demo caches at most 17 small images, supports vertical/horizontal removal, and includes difficult repeated-pattern scenes and an energy-map view. The companion fills the earlier release-scope topics without lengthening the introduction.
+
+`./scripts/check-all.sh` runs both independent numerical suites, exports actual Dyalog fixtures, executes all displayed APL blocks from the seven articles, and checks the browser models. There are 1,128 numerical fixture cases, plus structural, invalid-input, resource, file, and expression checks. This is not a claim of exhaustive coverage of arbitrary images.
+
+Browser verification covers Canny threshold coupling, ridge suppression and weak linking; seam cost inspection, removal, both axes, difficult scenes, and resize comparison; color-plane blur, reversal, thresholds, signed gradients, and sharpening overshoot. Each new page was checked at 390px without horizontal overflow. The first article provides selectable playback speed for its Play controls; all later animation remains under direct slider control. The diagrams are not a comprehensive accessibility audit.
