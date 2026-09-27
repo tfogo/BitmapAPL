@@ -82,8 +82,7 @@ The row operations apply weights in their given order (correlation). Gaussian sy
 ## Checks
 
 ```sh
-./scripts/check-runtime.sh
-python3 tests/run.py
+./scripts/check-all.sh
 ```
 
 The runtime check confirms that Dyalog and both source files load. The full suite requires Python 3's standard library and Dyalog on `PATH`. It creates temporary fixtures and removes them afterward.
@@ -189,3 +188,7 @@ The second article, [Choosing a neighbor](http://127.0.0.1:8765/neighborhoods.ht
 The third article, [Counting the light](http://127.0.0.1:8765/contrast.html), teaches comparisons, Each, scan, and indexing through histogram equalization.
 
 The fourth article, [Until nothing changes](http://127.0.0.1:8765/regions.html), teaches masks, Power, convergence, unique labels, and region areas through flood fill and connected components.
+
+The final articles are [Following an edge](http://127.0.0.1:8765/canny.html), [A path through a picture](http://127.0.0.1:8765/seams.html), and the companion [Color, detail, and array notation](http://127.0.0.1:8765/array-tools.html). All seven pages are linked in the series. The complete plan and verification status are in [ROADMAP.md](ROADMAP.md).
+
+Run a small console example with `ENABLE_CEF=0 dyalog -script examples/operations.apls`. The optional [row-filter benchmark](docs/benchmark.md) compares Stencil and matrix/inner-product implementations on this machine.

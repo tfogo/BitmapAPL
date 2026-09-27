@@ -1,0 +1,31 @@
+⎕TRAP←(0 'E' '⎕←⎕DM ⋄ ⎕OFF 1')
+⎕IO←0
+{}⎕FIX 'file://src/ImageOps.dyalog'
+Assert←{⍵:1 ⋄ ⎕SIGNAL 11}
+⎕←'Row-filter timing, milliseconds/call; 200 calls per sample, median of 5 samples'
+⎕←'length radius stencil_ms matrix_ms'
+:For n :In 64 256 1024
+    row←256|37×⍳n
+    :For radius :In 1 4
+        k←ImageOps.GaussianKernel radius 1
+        a←(k 'reflect') ImageOps.FilterRow row
+        b←(k 'reflect') ImageOps.MatrixFilterRow row
+        {}Assert 1E¯9>⌈/|a-b
+        times←2 5⍴0
+        :For run :In ⍳5
+            start←⎕AI[2]
+            :For repeat :In ⍳200
+                a←(k 'reflect') ImageOps.FilterRow row
+            :EndFor
+            times[0;run]←(⎕AI[2]-start)÷200
+            start←⎕AI[2]
+            :For repeat :In ⍳200
+                b←(k 'reflect') ImageOps.MatrixFilterRow row
+            :EndFor
+            times[1;run]←(⎕AI[2]-start)÷200
+        :EndFor
+        stencil←times[0;] ⋄ matrix←times[1;]
+        ⎕←n radius,stencil[2⊃⍋stencil],matrix[2⊃⍋matrix]
+    :EndFor
+:EndFor
+⎕OFF 0

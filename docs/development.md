@@ -81,3 +81,7 @@ brew install --cask dyalog
 ```
 
 The standard package installation may request an administrator password. Prefer Dyalog for this project: the existing class syntax and native-file functions are dialect-specific, so GNU APL is not a drop-in replacement.
+
+## Complete verification
+
+Run `./scripts/check-all.sh` for the runtime, both numerical oracle suites, all article code blocks, and browser-model parity. Run `ENABLE_CEF=0 dyalog -script examples/operations.apls` for a console demonstration. Benchmark reproduction is documented in [benchmark.md](benchmark.md). No production hosting or public APL evaluation service is configured.

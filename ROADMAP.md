@@ -2,7 +2,7 @@
 
 Build a reliable Dyalog image-processing library and an animated explainer that makes its array operations visible. The first release should take a reader from pixels to Gaussian blur and Sobel edges; later releases introduce nonlinear filters, statistics, regions, and dynamic programming.
 
-Completed items are checked below. The Gaussian core and BMP adapter are implemented and tested; Sobel and sharpening are also implemented. The frontend is a linear illustrated walkthrough; median filtering and binary morphology now have a second article. Histogram equalization has a third article; flood fill and connected regions have a fourth. Canny and seam carving remain planned. See [the source review](docs/library-review.md) for the initial findings and [local setup](docs/development.md) for runtime instructions.
+All six implementation milestones are complete. The library runs in Dyalog, the browser model is checked against its results, and seven linked articles cover the planned image operations and APL concepts. See [verification and walkthrough notes](docs/explainer.md), [the advanced contracts](docs/advanced-operations.md), [benchmark results](docs/benchmark.md), and [local setup](docs/development.md). Hosting and a live browser APL service were outside this plan.
 
 ## 0. Establish a runnable baseline
 
@@ -27,7 +27,7 @@ Completed items are checked below. The Gaussian core and BMP adapter are impleme
 
 **Animation:** start with an impulse; expand its Gaussian weights, slide a window along one row, then show the horizontal and vertical passes. Let the reader change sigma independently of radius and inspect boundary samples.
 
-**Verified:** 72 comparisons against a Python direct 2-D oracle plus Dyalog kernel, boundary, channel, validation, resource-cleanup, and BMP round-trip checks pass. Stencil and matrix results agree; performance benchmarking remains future work.
+**Verified:** 72 comparisons against a Python direct 2-D oracle plus Dyalog kernel, boundary, channel, validation, resource-cleanup, and BMP round-trip checks pass. Stencil and matrix results agree; the row-filter benchmark is recorded in [docs/benchmark.md](docs/benchmark.md).
 
 ## 2. Ship the first animated lesson: pixels → blur → edges
 
@@ -41,7 +41,7 @@ Completed items are checked below. The Gaussian core and BMP adapter are impleme
 
 **Done when:** a reader can step through a single output pixel, then run the same operation over the image. A constant plane has zero interior Sobel response; horizontal and vertical ramps produce the expected signed direction; sharpening strength zero returns the original.
 
-**Current presentation:** a continuous article with short paragraphs and one focused demonstration at a time, following the user’s preference for the clear explanatory style of ciechanow.ski. Diagrams cover pixel values, inversion, transpose, weighted neighborhoods, Gaussian weights, two passes, and edges. The shared model still agrees with 96 exported Dyalog cases. Sharpening remains available in the library; it is not added to the introductory article.
+**Current presentation:** a continuous introductory article with short paragraphs and focused demonstrations. The companion **Color, detail, and array notation** adds color-plane indexing and blur, reversal, thresholding, signed horizontal/vertical gradients, sharpening, and inner products. This keeps the opening article simple while covering the full release scope.
 
 - [x] Add an image-scale Sobel reveal after the small neighborhood explanation.
 - [x] Animate transpose within a single figure using a directly controlled slider.
@@ -83,26 +83,30 @@ Start with a full 3×3 structuring element, then add a cross-shaped mask. Show a
 
 ## 5. Build Canny as a complete pipeline
 
-- [ ] Reuse Gaussian smoothing and gradients.
-- [ ] Add gradient direction and non-maximum suppression.
-- [ ] Add low/high thresholds and retain weak edges connected to strong ones.
-- [ ] Specify direction quantization/interpolation, boundary rules, and connectivity.
+- [x] Reuse Gaussian smoothing and gradients.
+- [x] Add gradient direction and non-maximum suppression.
+- [x] Add low/high thresholds and retain weak edges connected to strong ones.
+- [x] Specify direction quantization/interpolation, boundary rules, and connectivity.
 
 **Animation:** a synchronized strip of source → smoothing → gradient → thinning → strong/weak classification → connected edges. Animate weak-edge acceptance as propagation from strong edges, with both thresholds adjustable.
 
 **Done when:** synthetic lines and junctions validate thinning and connectivity, and increasing thresholds behaves as documented. Compare against a reference with matching conventions rather than demanding bitwise equality with a differently configured implementation.
 
+**Verified:** 30 full pipeline fixtures and five independent BFS linking cases; exact browser agreement under the documented direction, border, tolerance, and tie conventions. **Following an edge** shows the synchronized pipeline and a small linking trace.
+
 ## 6. Add seam carving as the advanced demonstration
 
-- [ ] Reuse gradients to compute an energy map.
-- [ ] Accumulate minimum path costs row by row with explicit boundary handling.
-- [ ] Backtrack the selected seam, remove it, and recompute energy before the next removal.
-- [ ] Start with vertical removal; add horizontal removal by reusing the spatial-axis transformation.
-- [ ] Show limitations on images with dense important content, straight lines, and repeated patterns.
+- [x] Reuse gradients to compute an energy map.
+- [x] Accumulate minimum path costs row by row with explicit boundary handling.
+- [x] Backtrack the selected seam, remove it, and recompute energy before the next removal.
+- [x] Start with vertical removal; add horizontal removal by reusing the spatial-axis transformation.
+- [x] Show limitations on images with dense important content, straight lines, and repeated patterns.
 
 **Animation:** color the energy map, reveal candidate predecessor costs for one cell, fill the cumulative-cost table, trace the winning path, then remove one seam. Provide a width control and a comparison with ordinary resizing.
 
 **Done when:** each seam is connected and removes exactly one pixel per row, tiny cases match exhaustive minimum-path search, and repeated removal respects minimum dimensions. Define deterministic tie-breaking so animations are reproducible.
+
+**Verified:** 30 energy maps checked against exhaustive path enumeration and 18 repeated vertical/horizontal carvings with recomputed energies. **A path through a picture** shows predecessor costs, cumulative rows, backtracking, removal, energy coloring, and a comparison with resizing on simple and difficult scenes.
 
 ## Editorial direction
 
@@ -112,6 +116,9 @@ Use a linear article, inspired by the explanatory pacing of [Mechanical Watch](h
 
 ## Shared animation and documentation design
 
+Implemented controls follow the requested simple article format: each figure has local sliders or choices. Sliders support arrows for stepping and Home/End for reset/end. The introductory article also has Play/Pause controls, a global pause, and a speed selector. Later articles use direct scrubbing instead of adding playback panels. No animation starts automatically. Tests retain small traces; the seam demo caps its image and removal count.
+
+
 - **One state, several views:** synchronize the image, numeric array, active APL expression, and intermediate values. Highlight the subexpression that produced the visible result.
 - **Reader control:** play/pause, single-step, scrub, reset, and speed controls. Parameter changes reset or recompute the trace consistently. No forced autoplay; honor reduced-motion settings and provide equivalent static steps.
 - **Teach without hiding arithmetic:** small fixtures expose every value; larger previews show the practical effect. Explain that a sequential animation illustrates dependencies and need not represent the interpreter's physical execution order.
@@ -120,13 +127,13 @@ Use a linear article, inspired by the explanatory pacing of [Mechanical Watch](h
 - **Keep APL authoritative:** run kernels and fixtures in Dyalog and export versioned expected results and traces. A browser implementation may support immediate interaction, but must identify itself as a model and be checked against those fixtures. Arbitrary APL evaluation in a public frontend is outside the first release.
 - **Explain each operation consistently:** input/output shape, formula, expanded APL, compact APL, intermediate arrays, boundaries, complexity, tests, and practical limitations.
 
-Current layout: `bitmap.dyalog` is the adapter, `src/` contains pure operations, and `tests/` contains the Dyalog suite and independent Python oracle. Add examples under `examples/` and the explainer under `web/` when those features land.
+Current layout: `bitmap.dyalog` is the adapter, `src/` contains pure operations, `tests/` contains Dyalog suites and independent Python oracles, `examples/` contains a runnable APL demonstration, and `web/` contains the seven articles. Run `./scripts/check-all.sh` to verify the library, browser model, and every displayed APL code block.
 
-## Suggested implementation order
+## Completed implementation order
 
 Runtime and smoke check → blur/API fixes → shared animation surface and Gaussian lesson → Sobel and sharpening → median and morphology → histogram/regions → Canny → seam carving.
 
-Keep each milestone independently useful. Choose the frontend stack when starting the first lesson; deployment and a hosted Dyalog service are separate decisions.
+The frontend uses static HTML, CSS, and JavaScript modules, with no build step. Deployment and a hosted Dyalog service remain separate decisions, outside the completed implementation plan.
 
 ## References
 

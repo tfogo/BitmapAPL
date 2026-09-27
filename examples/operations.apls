@@ -1,0 +1,17 @@
+⎕TRAP←(0 'E' '⎕←⎕DM ⋄ ⎕OFF 1')
+⎕IO←0
+{}⎕FIX 'file://src/ImageOps.dyalog'
+mask←9 11⍴0
+mask[2+⍳5;3+⍳5]←1
+picture←30+190×mask
+⎕←'A small shape:' ⋄ ⎕←mask
+⎕←'Gaussian blur:' ⋄ ⎕←(1 1 'clamp') ImageOps.BlurPlane picture
+⎕←'Median:' ⋄ ⎕←(1 'clamp') ImageOps.Median picture
+⎕←'Opening:' ⋄ ⎕←('open' 'square') ImageOps.Morphology mask
+regions←4 ImageOps.Components mask
+⎕←'Region areas:' ⋄ ⎕←regions.areas
+edges←(1 1 35 100) ImageOps.Canny picture
+⎕←'Canny edges:' ⋄ ⎕←edges.edges
+smaller←(2 'vertical') ImageOps.Carve picture
+⎕←'Carved shape:' ⋄ ⎕←⍴smaller.output
+⎕OFF 0
