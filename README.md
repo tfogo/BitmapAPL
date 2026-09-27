@@ -94,7 +94,7 @@ Checks include 72 blur cases against an independent Python direct 2-D oracle, ke
 
 The documented `bm.gaussianBlur radius sigma` call now works and mutates `ImageTable`. The previous array-returning method and its public helpers have been replaced by the pure `ImageOps` namespace. Transient byte buffers are no longer public fields. `DIBHeader` fixes the original spelling; `DIPHeader` remains available as a read-compatible copy. Editing these exposed header copies does not change serialization.
 
-The next milestone is an animated Gaussian/Sobel explainer. No frontend or new edge-detection operations are implemented yet.
+The local animated explainer now covers array basics, Gaussian blur, Sobel, and sharpening. See the preview instructions below.
 
 ## Edges, correlation, and sharpening
 
@@ -110,3 +110,20 @@ filtered←((3 3⍴0 1 0 1 ¯4 1 0 1 0) 'clamp') ImageOps.Correlate plane
 `Correlate` applies any nonempty odd-sized rectangular kernel in its given order. Sobel uses unnormalized 3×3 kernels, so a unit horizontal ramp has interior `gx=8`. `Unsharp` takes radius, sigma, nonnegative strength, and boundary mode. Results retain signs and values outside the display range; clipping belongs to presentation or serialization.
 
 `python3 tests/run.py --export` regenerates `web/fixtures/apl-reference.json` from the actual Dyalog results after all numerical and BMP checks pass. It includes 72 blur cases and 24 Sobel/sharpening cases for browser parity checks.
+
+## Animated explainer
+
+```sh
+python3 -m http.server 8765 --bind 127.0.0.1 --directory web
+```
+
+Open [the local explainer](http://127.0.0.1:8765). It has five lessons, pixel selection, play/pause, single-step, scrubbing, parameter controls, and a color-plane sample. Arrow keys move the selected cell inside a grid. It requires no npm installation or build step.
+
+The browser uses a JavaScript model, not a live APL interpreter. Validate it against freshly executed Dyalog outputs with:
+
+```sh
+python3 tests/run.py --export
+node --test tests/browser-model.test.mjs
+```
+
+See [explainer development notes](docs/explainer.md) for the UI checks and remaining work.

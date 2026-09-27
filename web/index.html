@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bitmap APL — a moving picture of array programming</title>
+<meta name="description" content="Step through pixels, array transformations, Gaussian blur, Sobel edges, and sharpening with APL expressions and visible arithmetic.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%232b50ff'/%3E%3Ctext x='5' y='24' fill='white' font-size='25'%3E⍴%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header><a class="brand" href="./"><span class="brand-mark">⍴</span> BITMAP / APL</a><span class="edition">AN INTERACTIVE ARRAY NOTEBOOK</span><a href="#notes">About the calculations</a></header>
+<main>
+<section class="intro"><div><p class="eyebrow">FROM NUMBERS TO PICTURES</p><h1>See what the array does.</h1></div><p>Follow a pixel through an APL expression.<br>Pause anywhere. Look at the numbers.</p></section>
+<nav aria-label="Lessons" id="lessons">
+<button data-lesson="array">01 <span>Pixels & shape</span><b>⍴</b></button>
+<button data-lesson="transform">02 <span>Whole arrays</span><b>⌽ ⍉</b></button>
+<button data-lesson="blur" aria-current="step">03 <span>Gaussian blur</span><b>⌺</b></button>
+<button data-lesson="sobel">04 <span>Find an edge</span><b>+.×</b></button>
+<button data-lesson="sharpen">05 <span>Bring back detail</span><b>− +</b></button>
+</nav>
+<section class="workbench" aria-label="Image operation explorer">
+<div class="controls">
+<label>Image<select id="sample"><option value="shape">A small shape</option><option value="impulse">One bright pixel</option><option value="edge">A vertical edge</option><option value="ramp">Brightness ramp</option><option value="color">Color planes</option></select></label>
+<label id="channel-control" hidden>Plane<select id="channel"><option value="0">Red · horizontal ramp</option><option value="1">Green · vertical ramp</option><option value="2">Blue · checkerboard</option></select></label>
+<label id="operation-control" hidden>Operation<select id="operation"><option value="invert">Invert</option><option value="threshold">Threshold</option><option value="flip">Flip horizontally</option><option value="transpose">Transpose</option></select></label>
+<label id="boundary-control">Boundary<select id="boundary"><option value="clamp">Clamp</option><option value="reflect">Reflect · repeat edge</option><option value="zero">Zero</option></select></label>
+<label id="radius-control">Radius <output id="radius-value">2 px</output><input id="radius" aria-label="Radius in pixels" type="range" min="0" max="4" value="2" step="1"></label>
+<label id="sigma-control">Sigma <output id="sigma-value">1.0 px</output><input id="sigma" aria-label="Sigma in pixels" type="range" min="0.3" max="3" value="1" step="0.1"></label>
+<label id="amount-control" hidden>Strength <output id="amount-value">1.5</output><input id="amount" aria-label="Sharpening strength" type="range" min="0" max="3" value="1.5" step="0.1"></label>
+<label id="threshold-control" hidden>Threshold <output id="threshold-value">128</output><input id="threshold" aria-label="Threshold" type="range" min="0" max="255" value="128" step="1"></label>
+</div>
+<div class="lesson-heading"><div><p class="eyebrow" id="concept"></p><h2 id="title"></h2></div><p id="description"></p></div>
+<div class="views">
+<figure><figcaption><span>01 / INPUT</span><strong id="input-shape"></strong></figcaption><div class="image-grid" id="input-grid" aria-label="Input pixels"></div><p id="input-caption">Select any pixel to inspect its neighborhood.</p></figure>
+<figure><figcaption><span id="middle-label">02 / HORIZONTAL PASS</span><strong id="middle-shape"></strong></figcaption><div class="image-grid" id="middle-grid" aria-label="Intermediate pixels"></div><p id="middle-caption"></p></figure>
+<figure><figcaption><span id="output-label">03 / RESULT</span><strong id="output-shape"></strong></figcaption><div class="image-grid" id="output-grid" aria-label="Result pixels"></div><p id="output-caption"></p></figure>
+</div>
+<div class="transport"><button id="play" class="primary">Play</button><button id="step">Step</button><button id="reset">Reset</button><label class="scrub-label">Position<input type="range" id="position" aria-label="Animation position" min="0" max="125" value="0"></label><output id="progress">1 / 126</output><label>Speed<select id="speed"><option value="600">Slow</option><option value="180" selected>Medium</option><option value="60">Fast</option></select></label></div>
+</section>
+<section class="details">
+<article class="code-panel"><p class="eyebrow">THE EXPRESSION</p><h2 id="stage-title"></h2><pre><code id="expression"></code></pre><p id="code-explanation"></p><div class="glyphs" id="glyphs"></div></article>
+<article class="inspector"><p class="eyebrow">ONE PIXEL, EXPLAINED</p><h2 id="pixel-title"></h2><div id="weights" class="weights"></div><p id="arithmetic"></p><p class="result" id="pixel-result" aria-live="polite"></p></article>
+</section>
+<section class="large-preview" aria-label="Larger image comparison"><div><p class="eyebrow">THE SAME OPERATOR, MORE PIXELS</p><h2>From the grid to an image.</h2><p id="large-caption">A larger test image uses the same parameters. Radius and sigma stay in pixel units.</p></div><figure><figcaption>INPUT · 112 × 144</figcaption><canvas id="large-input" width="144" height="112" role="img" aria-label="Larger input test image"></canvas></figure><figure><figcaption id="large-output-label">RESULT · 112 × 144</figcaption><canvas id="large-output" width="144" height="112" role="img" aria-label="Processed larger test image"></canvas></figure></section>
+<section class="notes" id="notes"><h2>Read the numbers.<br>Then read the APL.</h2><div><p>These lessons use a JavaScript model, checked against outputs from the real Dyalog library. The page does not execute APL. A moving window explains dependencies; it does not imply that APL processes pixels in this animation order.</p><p>Numbers stay signed and unrounded during calculation. Grayscale views clip to 0–255; signed views use blue for positive values and orange for negative values, with signs printed in each cell. Sobel magnitude is scaled for display. All coordinates below use <code>⎕IO←1</code>.</p><p id="color-note">Try the color-plane sample to see how <code>BlurPlane⍤2</code> applies independently to each plane of a rank-three image. Its RGB teaching planes are separate from the BMP adapter’s BGRX byte order.</p><p>Use Step or the position slider for a static explanation. Playback starts only when you ask; system reduced-motion preferences disable cell transitions.</p><a href="https://docs.dyalog.com/20.0/language-reference-guide/primitive-operators/stencil/">Read Dyalog’s Stencil reference ↗</a></div></section>
+</main><footer>BITMAP APL <span>Pixels → neighborhoods → array operations</span></footer>
+<script type="module" src="app.mjs"></script>
+</body></html>

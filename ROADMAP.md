@@ -2,7 +2,7 @@
 
 Build a reliable Dyalog image-processing library and an animated explainer that makes its array operations visible. The first release should take a reader from pixels to Gaussian blur and Sobel edges; later releases introduce nonlinear filters, statistics, regions, and dynamic programming.
 
-Completed items are checked below. The Gaussian core and BMP adapter are implemented and tested; the animated frontend and later operations remain planned. See [the source review](docs/library-review.md) for the initial findings and [local setup](docs/development.md) for runtime instructions.
+Completed items are checked below. The Gaussian core and BMP adapter are implemented and tested; the first local animated lessons, Sobel, and sharpening are also implemented; a larger test-image preview is included; later operations remain planned. See [the source review](docs/library-review.md) for the initial findings and [local setup](docs/development.md) for runtime instructions.
 
 ## 0. Establish a runnable baseline
 
@@ -31,15 +31,20 @@ Completed items are checked below. The Gaussian core and BMP adapter are impleme
 
 ## 2. Ship the first animated lesson: pixels → blur → edges
 
-- [ ] Teach shape/reshape `⍴`, indexing, whole-array inversion and thresholding, reverse `⌽`, and transpose `⍉` using a small numeric grid.
+- [x] Teach shape/reshape `⍴`, indexing, whole-array inversion and thresholding, reverse `⌽`, and transpose `⍉` using a small numeric grid.
 - [x] Add a reusable neighborhood operation with an explicit correlation/convolution convention. Gaussian symmetry hides kernel reversal; directional filters do not.
 - [x] Add Sobel horizontal/vertical gradients and magnitude. Show signed gradients before mapping them to display colors.
 - [x] Add unsharp masking by subtracting the blurred image and scaling the detail layer.
-- [ ] Introduce Stencil `⌺`, weighted sums `+/`, inner product `+.×`, and Rank `⍤` at the point they become useful.
+- [x] Introduce Stencil `⌺`, weighted sums `+/`, inner product `+.×`, and Rank `⍤` at the point they become useful.
 
 **Animations:** move each pixel to its new position during transpose; align a kernel with a neighborhood and reveal products before their sum; build the two Sobel responses beside their combined magnitude; reveal the detail layer before adding it back for sharpening.
 
 **Done when:** a reader can step through a single output pixel, then run the same operation over the image. A constant plane has zero interior Sobel response; horizontal and vertical ramps produce the expected signed direction; sharpening strength zero returns the original.
+
+**Implemented:** five local lessons, selectable pixels, playback/step/scrub controls, radius/sigma/boundary/strength controls, RGB teaching planes, keyboard grid navigation, and mobile layouts. A 112×144 test image shows the same operations at a larger scale. The JavaScript model agrees with 96 exported Dyalog cases.
+
+- [x] Add a larger source-image preview alongside the small teaching grid.
+- [x] Animate actual pixel movement for transpose when both cells are visible; retain linked selections for reduced motion and narrow screens.
 
 **Release 1 scope:** grayscale lessons plus one color-plane explanation, Gaussian blur, Sobel, and unsharp masking. Use both tiny numeric fixtures and a larger image preview. Avoid waiting for later algorithms before making this usable.
 
