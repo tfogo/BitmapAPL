@@ -159,3 +159,5 @@ node --test tests/browser-model.test.mjs
 See [explainer development notes](docs/explainer.md) for the UI checks and remaining work.
 
 The second article, [Choosing a neighbor](http://127.0.0.1:8765/neighborhoods.html), introduces ravel, grade, indexing, Boolean selection, maximum/minimum reductions, and composition through median filtering and binary shapes.
+
+The third article, [Counting the light](http://127.0.0.1:8765/contrast.html), teaches comparisons, Each, scan, and indexing through histogram equalization.

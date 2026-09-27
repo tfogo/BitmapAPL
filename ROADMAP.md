@@ -2,7 +2,7 @@
 
 Build a reliable Dyalog image-processing library and an animated explainer that makes its array operations visible. The first release should take a reader from pixels to Gaussian blur and Sobel edges; later releases introduce nonlinear filters, statistics, regions, and dynamic programming.
 
-Completed items are checked below. The Gaussian core and BMP adapter are implemented and tested; Sobel and sharpening are also implemented. The frontend is a linear illustrated walkthrough; median filtering and binary morphology now have a second article. Later operations remain planned. See [the source review](docs/library-review.md) for the initial findings and [local setup](docs/development.md) for runtime instructions.
+Completed items are checked below. The Gaussian core and BMP adapter are implemented and tested; Sobel and sharpening are also implemented. The frontend is a linear illustrated walkthrough; median filtering and binary morphology now have a second article. Histogram equalization has a third article; regions and later operations remain planned. See [the source review](docs/library-review.md) for the initial findings and [local setup](docs/development.md) for runtime instructions.
 
 ## 0. Establish a runnable baseline
 
@@ -71,6 +71,11 @@ Start with a full 3×3 structuring element, then add a cross-shaped mask. Show a
 | Histogram equalization | Counting/grouping, cumulative scan `+\`, table lookup | Accumulate bins, sweep the cumulative distribution, then trace pixels through the brightness mapping | Pixel counts conserved; mapping monotone; constant image handled explicitly |
 | Flood fill | Masks, neighbor propagation, iteration | Expand one frontier per step from a selected seed | Fill remains in the allowed mask; disconnected areas remain untouched |
 | Connected components | Convergence with Power `⍣`, grouping and reductions | Propagate region labels, then color regions and reveal their areas | Known object counts, areas, and explicit 4- versus 8-connectivity |
+
+- [x] Implement grayscale histogram equalization with inspectable counts, running totals, mapping, and output; preserve constant images.
+- [x] Verify 28 Dyalog cases against independent Python results and export intermediate arrays for browser parity checks.
+- [x] Add **Counting the light**, teaching comparisons, Each, scan, and lookup with counting, cumulative totals, mapping, and image/histogram comparisons.
+- [ ] Add flood fill and connected-component labeling, with explicit connectivity and propagation animations.
 
 **Done when:** the demo distinguishes local neighborhood rules from whole-image statistics and iteration. Histogram equalization initially operates on grayscale only.
 

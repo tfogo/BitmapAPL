@@ -55,3 +55,11 @@ APL385 is public-domain font artwork by Adrian Smith; attribution is in `web/fon
 The two articles share typography and the numerical model. The second page uses `neighborhoods.mjs` for its diagrams. Exported fixtures now include 81 median cases and 552 morphology cases in addition to the original 96 numerical cases. The full numerical checks remain the commands above.
 
 Verified in the browser: the grade order and middle value, noise control, erosion with a cross at an image border, both composition endpoints, and a 390px layout with no horizontal overflow. The displayed grade, Stencil, and composition examples also execute successfully in Dyalog.
+
+## Third article: Counting the light
+
+`web/contrast.html` and `web/contrast.mjs` introduce comparisons, Each, scan, and table lookup. The first three diagrams share an eight-pixel fixture: count arrivals into bins, sweep the cumulative counts, then trace an input level through its mapping. The larger example is a deterministic grayscale landscape; a wipe compares the original and equalized pixels. Two static histograms use four-level bins and a shared vertical scale.
+
+The page explicitly distinguishes this global mapping from neighborhood filters, explains CDF-min normalization and rounding, and leaves constant images unchanged. All diagrams use the tested browser model. Fixtures include 28 Dyalog equalization cases with all intermediate arrays. Sliders control motion directly; the accumulating-pixel animation illustrates the idea, not interpreter scheduling.
+
+Verified all displayed third-article code blocks by executing them together in Dyalog. Browser checks cover completed counts, the final running total, lookup of an unoccupied bin, the full equalized image, and a 390px layout without horizontal overflow.

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Counting the light — Bitmap APL</title><meta name="description" content="Learn APL comparisons, Each, cumulative scan, and table lookup through animated histogram equalization."><link rel="stylesheet" href="style.css"></head>
+<body><header><a href="./">Bitmap APL</a><span>An illustrated introduction · 3</span></header>
+<main><article>
+<div class="opening"><p class="kicker">COMPARISONS, COUNTS, AND RUNNING TOTALS</p><h1>Counting the light</h1><p class="lede">A whole picture can help us choose what to do with one pixel.</p></div>
+<p>So far, we have asked each pixel’s neighbors for help. This time we’ll count brightness values across the whole image. APL’s comparisons and running totals give us a way to turn those counts into contrast.</p>
+<p>Start with eight pixels. Their values range from 2 to 6. Move the slider to count them, one at a time.</p>
+<figure><canvas id="counting" role="img" aria-label="Eight pixel values feed a histogram. The final counts for levels zero through seven are zero, zero, two, three, zero, one, two, zero."></canvas><div class="control"><label for="count-step">Count the pixels</label><input id="count-step" type="range" min="0" max="8" step="0.01" value="0"><span class="ends"><span>None</span><span>All eight</span></span></div><figcaption id="count-caption" aria-live="polite"></figcaption></figure>
+<section><h2>A comparison makes a mask</h2>
+<p>We’ve seen lists of zeros and ones select values. A comparison can make one of those lists. Here, <code>=</code> asks which values equal 3:</p>
+<pre><code>values ← 2 2 3 3 3 5 6 6
+values=3
+⍝ 0 0 1 1 1 0 0 0</code></pre>
+<p>Add the ones and we have a count. There are three pixels with value 3.</p>
+<pre><code>+/values=3              ⍝ 3</code></pre>
+<p>Read it from the right: compare first, then sum. No new kind of loop is needed.</p>
+<h2>Ask the same question of each level</h2>
+<p>We can put the question in a function and apply it to each brightness level. The two dots <code>¨</code>, called <em>Each</em>, do that for us.</p>
+<pre><code>⎕IO ← 0
+Count ← {+/values=⍵}
+counts ← Count¨⍳8
+⍝ 0 0 2 3 0 1 2 0</code></pre>
+<p><code>⍳8</code> supplies levels 0 through 7. Each calls <code>Count</code> once for every level. The resulting list is a <em>histogram</em>: how often each value appears.</p>
+<p>Our library uses 256 levels for an 8-bit grayscale image. The small diagram uses eight so we can see every count.</p>
+<h2>A slash keeps the sum. A backslash keeps the steps.</h2>
+<p><code>+/</code> gives the final sum. Replace the slash with a backslash and <code>+&#92;</code> keeps the running totals. This operator is called <em>scan</em>.</p>
+<pre><code>+/counts                ⍝ 8
++&#92;counts                ⍝ 0 0 2 5 5 6 8 8</code></pre>
+<p>At level 3, the running total is 5. Five of our eight pixels have brightness 3 or less. Sweep across the histogram to see these totals build.</p>
+<figure><canvas id="scanning" role="img" aria-label="A sweep across histogram bins highlights each count and its running total."></canvas><div class="control"><label for="scan-level">Include brightness levels up to</label><input id="scan-level" type="range" min="0" max="7" step="1" value="3"><span class="ends"><span>0</span><span>7</span></span></div><figcaption id="scan-caption" aria-live="polite"></figcaption></figure>
+<p>This is a cumulative histogram. Unlike a neighborhood filter, it describes the whole image. Moving the pixels around would not change it.</p>
+<h2>Turn the totals into a table</h2>
+<p>Our pixels occupy a small part of the available brightness range. We can use the running totals to spread their values out.</p>
+<p>The first occupied level is 2, with a running total of 2. Subtract that total so the darkest pixels map to zero. Divide by the remaining count, 6, then scale to 255.</p>
+<pre><code>running ← +&#92;counts
+first ← 2               ⍝ first nonzero running total
+scaled ← 255×(0⌈running-first)÷8-first
+mapping ← ⌊0.5+scaled
+⍝ 0 0 0 128 128 170 255 255</code></pre>
+<p><code>0⌈</code> keeps the value from going below zero. Adding 0.5 and taking the floor with <code>⌊</code> rounds to an integer. The histogram decides the spacing: a more common level makes a larger jump in the running total.</p>
+<figure><canvas id="mapping" role="img" aria-label="An input brightness follows a line through a lookup table to its new brightness."></canvas><div class="control"><label for="map-level">Trace an input value</label><input id="map-level" type="range" min="0" max="7" step="1" value="3"><span class="ends"><span>0</span><span>7</span></span></div><figcaption id="map-caption" aria-live="polite"></figcaption></figure>
+<p>Now square brackets do the rest. The values in our image become positions in the table:</p>
+<pre><code>mapping[values]
+⍝ 0 0 128 128 128 170 255 255</code></pre>
+<p>Every pixel with the same input value gets the same output value. The order stays intact: a darker input never becomes brighter than a lighter one.</p>
+</section>
+<section><h2>Give the picture more room</h2>
+<p>This is <em>histogram equalization</em>. Here it is on a larger image whose brightness values sit close together. Drag the dividing line to compare the same locations.</p>
+<figure><canvas id="contrast-image" role="img" aria-label="A low-contrast generated landscape and its equalized version, separated by an adjustable dividing line."></canvas><div class="control"><label for="contrast-reveal">Reveal the equalized image</label><input id="contrast-reveal" type="range" min="0" max="1" step="0.01" value="0.5"><span class="ends"><span>Original</span><span>Equalized</span></span></div><figcaption id="contrast-caption" aria-live="polite"></figcaption></figure>
+<p>Below are the counts before and after the change. Each bar groups four adjacent brightness levels so the plot fits on the page.</p>
+<figure><canvas id="contrast-histograms" role="img" aria-label="Before and after histograms show a narrow input range spread across the available output range."></canvas><figcaption>Both histograms count the same pixels. They use the same vertical scale.</figcaption></figure>
+<pre><code>result ← ImageOps.Equalize picture
+result.histogram
+result.cumulative
+result.mapping
+result.output</code></pre>
+<p>The function returns the intermediate arrays as well as the picture, so we can inspect each step. It accepts integer grayscale values from 0 to 255.</p>
+<p>If every pixel has the same value, there is no range to spread out. The divisor would be zero. The library handles that case by leaving the image unchanged.</p>
+<p>Despite its name, equalization does not guarantee equal-sized histogram bars. All pixels with one input value move together. It can reveal detail, but it can also exaggerate noise or make a picture look harsh. It cannot recover detail that was never recorded.</p>
+<aside>This example works on grayscale. Applying different mappings to red, green, and blue can change a picture’s colors. Color equalization needs a separate choice about which quantity to change.</aside>
+<p>We used <code>=</code> to ask a question, <code>¨</code> to ask it of each level, <code>+&#92;</code> to keep running totals, and indexing to apply the answer. A few array operations carried us from counting pixels to changing a whole picture.</p>
+</section>
+<footer><h2>About this walkthrough</h2><p>The browser model is checked against 28 executed Dyalog cases, including counts, running totals, mappings, and output pixels. It does not execute APL in the browser. The count animation illustrates accumulation; it does not show the interpreter’s execution order. All motion is controlled by the sliders.</p><p>The landscape is generated from fixed shapes and brightness gradients. The mapping subtracts the first occupied cumulative count, scales to 0–255, and rounds halves up. Constant images remain unchanged.</p><p><a href="neighborhoods.html">← Choosing a neighbor</a> · <a href="./">Start with APL</a></p></footer>
+</article></main><script type="module" src="contrast.mjs"></script>
+</body></html>

@@ -6,3 +6,5 @@ button[aria-pressed=true]{background:#ededf8;border-color:var(--accent)}
 #sorting{height:290px}#noise{height:240px}#morph{height:330px}#composition{height:330px}
 .next-article{margin:70px 0 0;padding:24px 0;border-top:1px solid #e4e4e8}.next-article a{font-size:22px}.next-article p{font-size:16px;margin:8px 0}
 @media(max-width:520px){#sorting{height:260px}#noise{height:180px}#morph{height:260px}#composition{height:310px}.button-row button{font-size:13px}}
+#counting{height:320px}#scanning{height:280px}#mapping{height:280px}#contrast-image{height:370px}#contrast-histograms{height:310px}
+@media(max-width:520px){#contrast-image{height:260px}}
