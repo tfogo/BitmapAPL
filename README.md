@@ -95,3 +95,18 @@ Checks include 72 blur cases against an independent Python direct 2-D oracle, ke
 The documented `bm.gaussianBlur radius sigma` call now works and mutates `ImageTable`. The previous array-returning method and its public helpers have been replaced by the pure `ImageOps` namespace. Transient byte buffers are no longer public fields. `DIBHeader` fixes the original spelling; `DIPHeader` remains available as a read-compatible copy. Editing these exposed header copies does not change serialization.
 
 The next milestone is an animated Gaussian/Sobel explainer. No frontend or new edge-detection operations are implemented yet.
+
+## Edges, correlation, and sharpening
+
+```apl
+edges←'clamp' ImageOps.Sobel plane
+edges.gx                       ⍝ Signed horizontal brightness change
+edges.gy                       ⍝ Signed vertical brightness change
+edges.magnitude                ⍝ Square root of gx² + gy²
+sharper←(3 1 1.5 'reflect') ImageOps.Unsharp plane
+filtered←((3 3⍴0 1 0 1 ¯4 1 0 1 0) 'clamp') ImageOps.Correlate plane
+```
+
+`Correlate` applies any nonempty odd-sized rectangular kernel in its given order. Sobel uses unnormalized 3×3 kernels, so a unit horizontal ramp has interior `gx=8`. `Unsharp` takes radius, sigma, nonnegative strength, and boundary mode. Results retain signs and values outside the display range; clipping belongs to presentation or serialization.
+
+`python3 tests/run.py --export` regenerates `web/fixtures/apl-reference.json` from the actual Dyalog results after all numerical and BMP checks pass. It includes 72 blur cases and 24 Sobel/sharpening cases for browser parity checks.

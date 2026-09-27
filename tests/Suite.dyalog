@@ -17,9 +17,33 @@
         :For case :In spec.cases
             plane←case.shape⍴case.pixels
             actual←(case.radius case.sigma case.mode) #.ImageOps.BlurPlane plane
+            case.apl←,actual
             {}'shape preserved' Assert case.shape≡⍴actual
             {}'direct 2-D oracle' Assert case.expected Close ,actual
         :EndFor
+        :For case :In spec.edges
+            plane←case.shape⍴case.pixels
+            result←case.mode #.ImageOps.Sobel plane
+            {}'Sobel horizontal oracle' Assert case.gx Close ,result.gx
+            {}'Sobel vertical oracle' Assert case.gy Close ,result.gy
+            {}'Sobel magnitude oracle' Assert case.magnitude Close ,result.magnitude
+            case.aplGx←,result.gx
+            case.aplGy←,result.gy
+            case.aplMagnitude←,result.magnitude
+            actual←(2 1 1.5 case.mode) #.ImageOps.Unsharp plane
+            {}'unsharp oracle' Assert case.unsharp Close ,actual
+            case.aplUnsharp←,actual
+            {}'sharpen amount zero' Assert plane Close (2 1 0 case.mode) #.ImageOps.Unsharp plane
+            actual←((1 5⍴2 ¯1 3 0 ¯2) case.mode) #.ImageOps.Correlate plane
+            {}'asymmetric rectangular correlation' Assert case.correlation Close ,actual
+        :EndFor
+        {}'even kernel rejected' Assert Fails '((2 2⍴1) ''clamp'') #.ImageOps.Correlate 3 3⍴1'
+        {}'negative sharpening rejected' Assert Fails '(1 1 ¯1 ''clamp'') #.ImageOps.Unsharp 3 3⍴1'
+        plane←5 5⍴⍳25
+        result←'clamp' #.ImageOps.Sobel plane
+        {}'ramp x sign and scale' Assert 8=result.gx[2;2]
+        {}'ramp y sign and scale' Assert 40=result.gy[2;2]
+        {}(⎕JSON spec) ⎕NPUT (folder,'/verified.json') 1
         kernel←#.ImageOps.GaussianKernel 4 2
         {}'kernel sums to one' Assert 1 Close +/kernel
         {}'symmetric kernel' Assert kernel Close ⌽kernel
@@ -73,6 +97,7 @@
         bm.ImageTable←4 2 2⍴0
         {}'header dimension mismatch rejected' Assert Fails 'bm.write folder,''/badheader.bmp'''
         {}'no leaked ties' Assert before≡⎕NNUMS
+        ⎕←'PASS: 24 Sobel/sharpening cases and asymmetric correlation, signed ramps, invalid arguments'
         ⎕←'PASS: ',(⍕≢spec.cases),' oracle cases; kernels, boundaries, channels, BMP validation and resource cleanup'
     ∇
 :EndNamespace

@@ -8,6 +8,7 @@ import shutil
 import struct
 import subprocess
 import tempfile
+import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -40,6 +41,13 @@ def reference(plane, radius, sigma, mode):
     # Direct square-kernel oracle, independent of the two-pass Dyalog implementation.
     return [sum(kernel[j] * kernel[i] * sample(plane, y + j - radius, x + i - radius, mode)
                 for j in range(len(kernel)) for i in range(len(kernel)))
+            for y in range(len(plane)) for x in range(len(plane[0]))]
+
+
+def correlate(plane, kernel, mode):
+    rh, rw = len(kernel) // 2, len(kernel[0]) // 2
+    return [sum(kernel[j][i] * sample(plane, y + j - rh, x + i - rw, mode)
+                for j in range(len(kernel)) for i in range(len(kernel[0])))
             for y in range(len(plane)) for x in range(len(plane[0]))]
 
 
@@ -78,7 +86,20 @@ def main():
                     cases.append(dict(shape=[len(plane), len(plane[0])],
                                       pixels=sum(plane, []), radius=radius, sigma=sigma,
                                       mode=mode, expected=reference(plane, radius, sigma, mode)))
-        (folder / 'oracle.json').write_text(json.dumps(dict(cases=cases, pixels=pixels,
+        edge_cases = []
+        for plane in planes:
+            for mode in ['zero', 'clamp', 'reflect']:
+                kx = [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]]
+                gy_kernel = [list(row) for row in zip(*kx)]
+                gx, gy = correlate(plane, kx, mode), correlate(plane, gy_kernel, mode)
+                arbitrary = [[2, -1, 3, 0, -2]]
+                blurred = reference(plane, 2, 1, mode)
+                flat = sum(plane, [])
+                edge_cases.append(dict(shape=[len(plane), len(plane[0])], pixels=flat, mode=mode,
+                    gx=gx, gy=gy, magnitude=[math.hypot(x, y) for x, y in zip(gx, gy)],
+                    correlation=correlate(plane, arbitrary, mode),
+                    unsharp=[p + 1.5 * (p - b) for p, b in zip(flat, blurred)]))
+        (folder / 'oracle.json').write_text(json.dumps(dict(cases=cases, edges=edge_cases, pixels=pixels,
                                                           invalid=list(invalid))))
         escaped = str(folder).replace("'", "''")
         runner = folder / 'run.apls'
@@ -103,6 +124,13 @@ def main():
         clamped = pixels.copy()
         clamped[:4] = [0, 1, 255, 255]
         assert (folder / 'clipped.bmp').read_bytes() == bmp(4, 3, clamped)
+        if '--export' in sys.argv:
+            verified = json.loads((folder / 'verified.json').read_text())
+            target = ROOT / 'web' / 'fixtures' / 'apl-reference.json'
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(json.dumps(dict(schema=1, generator='Dyalog ImageOps',
+                cases=verified['cases'], edges=verified['edges']), separators=(',', ':')) + '\n')
+            print('Exported Dyalog results to web/fixtures/apl-reference.json')
         print('PASS: independent BMP byte checks, round trips, clipping, and blur output')
 
 

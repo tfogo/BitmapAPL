@@ -74,4 +74,39 @@
         indices←(⍳≢row)∘.+⍳≢kernel
         R←padded[indices]+.×kernel
     ∇
+    ∇ R←options Correlate plane;kernel;mode;kh;kw;rh;rw;h;w;padded;⎕IO
+        ⍝ Apply an odd rectangular kernel as written; do not reverse its axes.
+        ⎕IO←0
+        kernel mode←options
+        :If (2≠≢⍴plane)∨0∊⍴plane
+            ⎕SIGNAL 11
+        :EndIf
+        :If (2≠≢⍴kernel)∨~∧/1=2|⍴kernel
+            ⎕SIGNAL 11
+        :EndIf
+        kh kw←⍴kernel
+        rh rw←(¯1+⍴kernel)÷2
+        h w←⍴plane
+        padded←{(rw mode) PadRow ⍵}⍤1⊢plane
+        padded←⍉{(rh mode) PadRow ⍵}⍤1⊢⍉padded
+        R←{+/,kernel×⍵}⌺(kh kw)⊢padded
+        R←R[rh+⍳h;rw+⍳w]
+    ∇
+
+    ∇ R←mode Sobel plane;kx
+        kx←3 3⍴¯1 0 1 ¯2 0 2 ¯1 0 1
+        R←⎕NS ''
+        R.gx←(kx mode) Correlate plane
+        R.gy←((⍉kx) mode) Correlate plane
+        R.magnitude←((R.gx*2)+R.gy*2)*0.5
+    ∇
+
+    ∇ R←options Unsharp plane;r;s;amount;mode;blurred
+        r s amount mode←options
+        :If (0≠≢⍴amount)∨amount<0
+            ⎕SIGNAL 11
+        :EndIf
+        blurred←(r s mode) BlurPlane plane
+        R←plane+amount×plane-blurred
+    ∇
 :EndNamespace

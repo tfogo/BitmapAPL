@@ -32,9 +32,9 @@ Completed items are checked below. The Gaussian core and BMP adapter are impleme
 ## 2. Ship the first animated lesson: pixels → blur → edges
 
 - [ ] Teach shape/reshape `⍴`, indexing, whole-array inversion and thresholding, reverse `⌽`, and transpose `⍉` using a small numeric grid.
-- [ ] Add a reusable neighborhood operation with an explicit correlation/convolution convention. Gaussian symmetry hides kernel reversal; directional filters do not.
-- [ ] Add Sobel horizontal/vertical gradients and magnitude. Show signed gradients before mapping them to display colors.
-- [ ] Add unsharp masking by subtracting the blurred image and scaling the detail layer.
+- [x] Add a reusable neighborhood operation with an explicit correlation/convolution convention. Gaussian symmetry hides kernel reversal; directional filters do not.
+- [x] Add Sobel horizontal/vertical gradients and magnitude. Show signed gradients before mapping them to display colors.
+- [x] Add unsharp masking by subtracting the blurred image and scaling the detail layer.
 - [ ] Introduce Stencil `⌺`, weighted sums `+/`, inner product `+.×`, and Rank `⍤` at the point they become useful.
 
 **Animations:** move each pixel to its new position during transpose; align a kernel with a neighborhood and reveal products before their sum; build the two Sobel responses beside their combined magnitude; reveal the detail layer before adding it back for sharpening.
