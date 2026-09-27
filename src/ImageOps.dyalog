@@ -168,4 +168,25 @@
             ⎕SIGNAL 11
         :EndSelect
     ∇
+    ∇ R←Equalize plane;values;first;total;⎕IO
+        ⍝ Grayscale byte levels only. CDF-min normalization; constants unchanged.
+        ⎕IO←0
+        :If (2≠≢⍴plane)∨0∊⍴plane
+            ⎕SIGNAL 11
+        :EndIf
+        values←,plane
+        :If ~∧/(values≥0)∧(values≤255)∧values=⌊values
+            ⎕SIGNAL 11
+        :EndIf
+        R←⎕NS ''
+        R.histogram←{+/values=⍵}¨⍳256
+        R.cumulative←+\R.histogram
+        first←⊃R.cumulative/⍨0<R.cumulative
+        total←≢values
+        R.mapping←⍳256
+        :If first≠total
+            R.mapping←⌊0.5+255×(0⌈R.cumulative-first)÷total-first
+        :EndIf
+        R.output←(⍴plane)⍴R.mapping[values]
+    ∇
 :EndNamespace

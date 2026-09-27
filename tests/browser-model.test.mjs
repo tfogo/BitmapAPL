@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {blur, sobel, unsharp, transform, gaussian, median, morphology} from '../web/model.mjs';
+import {blur, sobel, unsharp, transform, gaussian, median, morphology, equalize} from '../web/model.mjs';
 const reference = JSON.parse(readFileSync(new URL('../web/fixtures/apl-reference.json', import.meta.url)));
 function close(actual, expected) {
   assert.equal(actual.length, expected.length);
@@ -29,4 +29,12 @@ test('81 browser medians agree with executed Dyalog', () => {
 });
 test('552 binary morphology cases agree with executed Dyalog', () => {
   for (const c of reference.morphs) close(morphology(c.pixels, ...c.shape, c.operation, c.footprint), c.apl);
+});
+
+test('28 equalization cases agree with executed Dyalog, including intermediate arrays', () => {
+  for (const c of reference.equalizations) {
+    const result = equalize(c.pixels, ...c.shape);
+    close(result.histogram,c.aplHistogram); close(result.cumulative,c.aplCumulative);
+    close(result.mapping,c.aplMapping); close(result.output,c.aplOutput);
+  }
 });

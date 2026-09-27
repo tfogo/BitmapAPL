@@ -85,3 +85,15 @@ export function morphology(a, h, w, operation, footprint = 'square') {
     return result;
   });
 }
+
+export function equalize(a, h, w) {
+  if (!Number.isInteger(h) || !Number.isInteger(w) || h < 1 || w < 1 || a.length !== h*w ||
+      a.some(v => !Number.isInteger(v) || v < 0 || v > 255)) throw Error('Expected grayscale byte plane');
+  const histogram = Array(256).fill(0);
+  for (const v of a) histogram[v]++;
+  let sum = 0;
+  const cumulative = histogram.map(n => (sum += n));
+  const first = cumulative.find(n => n > 0);
+  const mapping = cumulative.map((n,i) => first === a.length ? i : Math.floor(.5+255*Math.max(0,n-first)/(a.length-first)));
+  return {histogram, cumulative, mapping, output:a.map(v => mapping[v])};
+}

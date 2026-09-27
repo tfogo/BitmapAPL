@@ -2,6 +2,8 @@
 """Generate independent fixtures, run Dyalog, and verify serialized BMP bytes."""
 import json
 import math
+import random
+from collections import Counter
 import os
 from pathlib import Path
 import shutil
@@ -73,6 +75,18 @@ def morphology_reference(plane, operation, footprint):
             for y in range(len(plane)) for x in range(len(plane[0]))]
 
 
+def equalize_reference(plane):
+    values = sum(plane, [])
+    counts = Counter(values)
+    histogram = [counts[i] for i in range(256)]
+    cumulative = [sum(n for level, n in counts.items() if level <= i) for i in range(256)]
+    first = counts[min(values)]
+    mapping = list(range(256)) if first == len(values) else [
+        math.floor(0.5 + 255 * max(0, n-first) / (len(values)-first)) for n in cumulative]
+    return dict(histogram=histogram, cumulative=cumulative, mapping=mapping,
+                output=[mapping[v] for v in values])
+
+
 def main():
     if not shutil.which('dyalog'):
         raise SystemExit('Dyalog is missing from PATH; see docs/development.md')
@@ -140,7 +154,15 @@ def main():
                     morphs.append(dict(shape=[len(plane), len(plane[0])], pixels=sum(plane, []),
                                        operation=operation, footprint=footprint,
                                        expected=morphology_reference(plane, operation, footprint)))
-        (folder / 'oracle.json').write_text(json.dumps(dict(cases=cases, edges=edge_cases, medians=medians, morphs=morphs, pixels=pixels,
+        equalizations = []
+        rng = random.Random(20260927)
+        contrast_planes = [[[2,2,3,3],[3,5,6,6]], [[73]*4 for _ in range(3)], [[0]], [[255]],
+                           [list(range(256))], [[0,255]], [[4,4,4,4,5]], [[32],[64],[128]]]
+        contrast_planes += [[[rng.randrange(85,146) for x in range(7)] for y in range(5)] for _ in range(20)]
+        for plane in contrast_planes:
+            equalizations.append(dict(shape=[len(plane),len(plane[0])],pixels=sum(plane,[]),
+                                       **equalize_reference(plane)))
+        (folder / 'oracle.json').write_text(json.dumps(dict(cases=cases, edges=edge_cases, medians=medians, morphs=morphs, equalizations=equalizations, pixels=pixels,
                                                           invalid=list(invalid))))
         escaped = str(folder).replace("'", "''")
         runner = folder / 'run.apls'
@@ -170,7 +192,7 @@ def main():
             target = ROOT / 'web' / 'fixtures' / 'apl-reference.json'
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(json.dumps(dict(schema=1, generator='Dyalog ImageOps',
-                cases=verified['cases'], edges=verified['edges'], medians=verified['medians'], morphs=verified['morphs']), separators=(',', ':')) + '\n')
+                cases=verified['cases'], edges=verified['edges'], medians=verified['medians'], morphs=verified['morphs'], equalizations=verified['equalizations']), separators=(',', ':')) + '\n')
             print('Exported Dyalog results to web/fixtures/apl-reference.json')
         print('PASS: independent BMP byte checks, round trips, clipping, and blur output')
 

@@ -127,6 +127,20 @@ closed ← ('close' 'square') ImageOps.Morphology mask
 
 The suite compares 81 median and 552 morphology cases against independent Python oracles, including every 2×3 binary image, singleton dimensions, boundary handling, and opening/closing idempotence. Exported Dyalog results also verify the browser model.
 
+## Grayscale histogram equalization
+
+```apl
+contrast ← ImageOps.Equalize plane
+contrast.histogram       ⍝ 256 pixel counts
+contrast.cumulative      ⍝ running totals
+contrast.mapping         ⍝ 256 integer output levels
+contrast.output          ⍝ equalized image, same shape
+```
+
+Input must be a nonempty matrix of integers from 0 to 255. The mapping subtracts the first nonzero cumulative count, scales the remaining range to 0–255, and rounds to the nearest integer (halves round up). Levels below the first occupied bin map to zero. Constant images remain unchanged and return an identity mapping. The implementation counts each of 256 levels separately: O(256N) work with O(N+256) temporary storage. It does not construct a 256×N equality table.
+
+This is a global grayscale operation: the mapping depends on the whole image. It can amplify noise or produce harsh contrast, and it does not guarantee a flat output histogram. Applying it independently to RGB channels can change colors; color equalization is outside this API. Tests cover 28 independent oracle cases, intermediate counts/mappings, monotonicity, constant images, and invalid inputs.
+
 ## Animated explainer
 
 ```sh

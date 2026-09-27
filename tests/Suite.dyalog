@@ -77,6 +77,31 @@
         {}'morphology independent of caller origin' Assert (2 2⍴1)≡('erode' 'cross') #.ImageOps.Morphology 2 2⍴1
         ⎕IO←0
         ⎕←'PASS: ',(⍕≢spec.medians),' median and ',(⍕≢spec.morphs),' morphology oracle cases; idempotence and validation'
+        :For case :In spec.equalizations
+            plane←case.shape⍴case.pixels
+            result←#.ImageOps.Equalize plane
+            {}'histogram counts oracle' Assert case.histogram≡result.histogram
+            {}'cumulative counts oracle' Assert case.cumulative≡result.cumulative
+            {}'mapping oracle' Assert case.mapping≡result.mapping
+            {}'equalized output oracle' Assert case.output≡,result.output
+            {}'equalized shape' Assert case.shape≡⍴result.output
+            {}'pixel count conserved' Assert (×/case.shape)=+/result.histogram
+            {}'mapping monotone' Assert ∧/(1↓result.mapping)≥¯1↓result.mapping
+            case.aplHistogram←result.histogram
+            case.aplCumulative←result.cumulative
+            case.aplMapping←result.mapping
+            case.aplOutput←,result.output
+        :EndFor
+        {}'equalization rejects fractions' Assert Fails '#.ImageOps.Equalize 2 2⍴0.5'
+        {}'equalization rejects negative values' Assert Fails '#.ImageOps.Equalize 2 2⍴¯1'
+        {}'equalization rejects values above 255' Assert Fails '#.ImageOps.Equalize 2 2⍴256'
+        {}'equalization rejects empty matrices' Assert Fails '#.ImageOps.Equalize 0 2⍴0'
+        {}'equalization rejects vectors' Assert Fails '#.ImageOps.Equalize 1 2 3'
+        ⎕IO←1
+        result←#.ImageOps.Equalize 2 3⍴73
+        {}'constant equalization and caller origin' Assert (2 3⍴73)≡result.output
+        ⎕IO←0
+        ⎕←'PASS: ',(⍕≢spec.equalizations),' equalization cases; counts, mapping, constants and validation'
         {}(⎕JSON spec) ⎕NPUT (folder,'/verified.json') 1
         kernel←#.ImageOps.GaussianKernel 4 2
         {}'kernel sums to one' Assert 1 Close +/kernel
