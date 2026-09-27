@@ -1,0 +1,18 @@
+#!/usr/bin/env dyalogscript
+⍝ Run with scripts/check-runtime.sh (preserves interpreter exit status).
+⎕TRAP←(0 'E' '⎕←⎕DM ⋄ ⎕OFF 1')
+⎕IO←1
+Assert←{⍵:1 ⋄ ⎕SIGNAL 11}
+⎕←'Dyalog version: ',⊃1↓⎕WG 'APLVersion'
+{}Assert 55=+/⍳10
+plane←3 4⍴⍳12
+{}Assert 4 3≡⍴⍉plane
+sums←{+/,⍵}⌺3 3⊢3 3⍴⍳9
+{}Assert 45=sums[2;2]
+{}⎕FIX 'file://src/ImageOps.dyalog'
+{}Assert 9=⎕NC 'ImageOps'
+{}⎕FIX 'file://bitmap.dyalog'
+{}Assert 9=⎕NC 'Bitmap'
+⎕←'PASS: arithmetic, reshape, transpose, Stencil, and Bitmap class loading'
+⎕←'For image-processing and BMP checks: python3 tests/run.py'
+⎕OFF 0
