@@ -94,7 +94,7 @@ Checks include 72 blur cases against an independent Python direct 2-D oracle, ke
 
 The documented `bm.gaussianBlur radius sigma` call now works and mutates `ImageTable`. The previous array-returning method and its public helpers have been replaced by the pure `ImageOps` namespace. Transient byte buffers are no longer public fields. `DIBHeader` fixes the original spelling; `DIPHeader` remains available as a read-compatible copy. Editing these exposed header copies does not change serialization.
 
-The local animated explainer now covers array basics, Gaussian blur, Sobel, and sharpening. See the preview instructions below.
+The local walkthrough introduces arrays, neighborhoods, Gaussian blur, and edges through a short article with inline animations. See the preview instructions below.
 
 ## Edges, correlation, and sharpening
 
@@ -117,7 +117,7 @@ filtered←((3 3⍴0 1 0 1 ¯4 1 0 1 0) 'clamp') ImageOps.Correlate plane
 python3 -m http.server 8765 --bind 127.0.0.1 --directory web
 ```
 
-Open [the local explainer](http://127.0.0.1:8765). It has five lessons, pixel selection, play/pause, single-step, scrubbing, parameter controls, and a color-plane sample. Arrow keys move the selected cell inside a grid. It requires no npm installation or build step.
+Open [the local walkthrough](http://127.0.0.1:8765). Read straight down: pixels become numbers, values move through a transpose, a window slides across a row, and a Gaussian spreads a bright pixel. Each diagram has one focused control. There are no lesson tabs or shared control panel. It requires no npm installation or build step.
 
 The browser uses a JavaScript model, not a live APL interpreter. Validate it against freshly executed Dyalog outputs with:
 

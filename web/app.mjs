@@ -1,147 +1,33 @@
-import {fixture, blur, sobel, unsharp, transform, sample, sobelX, sobelY} from './model.mjs';
-const $ = id => document.getElementById(id);
-const state = {lesson:'blur', frame:0, timer:null};
-let data;
-let movingPixel;
-const text = (id, value) => { $(id).textContent = value; };
-const number = n => Math.abs(n) < 0.0005 ? '0' : Number(n.toFixed(3)).toString();
-function stop() { movingPixel?.remove(); clearInterval(state.timer); state.timer = null; text('play','Play'); $('pixel-result').setAttribute('aria-live','polite'); }
-function configure() {
-  stop(); state.frame = 0;
-  const l = state.lesson, spatial = ['blur','sobel','sharpen'].includes(l), gaussian = ['blur','sharpen'].includes(l);
-  $('operation-control').hidden = l !== 'transform';
-  $('boundary-control').hidden = !spatial;
-  $('radius-control').hidden = $('sigma-control').hidden = !gaussian;
-  $('amount-control').hidden = l !== 'sharpen';
-  $('threshold-control').hidden = l !== 'transform' || $('operation').value !== 'threshold';
-  $('channel-control').hidden = $('sample').value !== 'color';
-  document.querySelectorAll('[data-lesson]').forEach(b => b.dataset.lesson === l ? b.setAttribute('aria-current','step') : b.removeAttribute('aria-current'));
-  const {pixels:a,h,w} = fixture($('sample').value, +$('channel').value);
-  const radius = +$('radius').value, sigma = +$('sigma').value, amount = +$('amount').value, mode = $('boundary').value;
-  data = {a,h,w,n:a.length,radius,sigma,amount,mode,oh:h,ow:w,stages:1};
-  if (l === 'blur') Object.assign(data, blur(a,h,w,radius,sigma,mode), {stages:2});
-  if (l === 'sobel') { Object.assign(data, sobel(a,h,w,mode), {stages:2}); data.output=data.magnitude; }
-  if (l === 'sharpen') Object.assign(data, unsharp(a,h,w,radius,sigma,amount,mode), {stages:2});
-  if (l === 'transform') { data.output=transform(a,h,w,$('operation').value,+$('threshold').value); if ($('operation').value==='transpose') {data.oh=w;data.ow=h;} }
-  if (l === 'array') data.output=a.slice();
-  $('position').max=data.n*data.stages-1;
-  text('radius-value',`${radius} px`);text('sigma-value',`${sigma.toFixed(1)} px`);text('amount-value',amount.toFixed(1));text('threshold-value',$('threshold').value);
-  render();
-  renderLarge();
-}
-function cellColor(v, signed, scale) {
-  if (signed) { const t=Math.min(1,Math.abs(v)/scale); return `rgb(${v<0?Math.round(246-30*t):Math.round(242-205*t)},${Math.round(246-130*t)},${v<0?Math.round(251-220*t):Math.round(251-15*t)})`; }
-  const t=Math.round(Math.max(0,Math.min(255,v/scale*255)));return `rgb(${t},${t},${t})`;
-}
-function grid(id, values, h,w, {active=-1,neighbors=[],revealed=Infinity,signed=false,scale=255,indexView=false}={}) {
-  const root=$(id);root.classList.toggle('signed',signed);root.style.gridTemplateColumns=`repeat(${w},minmax(0,1fr))`;root.style.aspectRatio=`${w}/${h}`;
-  root.replaceChildren(...values.map((v,i)=>{
-    const b=document.createElement('button');b.className='pixel';b.type='button';b.dataset.index=i;b.dataset.grid=id;
-    b.tabIndex=i===active?0:-1;
-    b.addEventListener('keydown',e=>{const delta={ArrowLeft:-1,ArrowRight:1,ArrowUp:-w,ArrowDown:w}[e.key];if(delta!==undefined){e.preventDefault();const next=Math.max(0,Math.min(values.length-1,i+delta));const target=root.querySelector(`[data-index="${next}"]`);target.focus();target.click();}});
-    b.classList.toggle('active',i===active);b.classList.toggle('neighbor',neighbors.includes(i)&&i!==active);b.classList.toggle('pending',i>revealed);
-    b.style.background=indexView?'#dbe6fc':cellColor(v,signed,scale);b.style.color=indexView||signed||v/scale>.48?'#14213a':'#fff';
-    b.textContent=signed&&v>0?`+${Math.round(v)}`:Math.round(v);
-    b.setAttribute('aria-label',`Row ${Math.floor(i/w)+1}, column ${i%w+1}: ${number(v)}${i>revealed?', upcoming':''}`);
-    b.addEventListener('click',()=>{stop();let p=i;if(id!=='output-grid'&&state.lesson==='transform'){if($('operation').value==='transpose')p=(i%data.w)*data.h+Math.floor(i/data.w);if($('operation').value==='flip')p=Math.floor(i/data.w)*data.w+data.w-1-i%data.w;}const pass=data.stages===2?(id==='output-grid'?1:id==='middle-grid'?0:Math.floor(state.frame/data.n)):0;state.frame=pass*data.n+p;render();});
-    return b;
-  }));
-}
-function render() {
-  const focused=document.activeElement?.dataset;const focusGrid=focused?.grid,focusIndex=focused?.index;
-  const {a,h,w,n,output,oh,ow,mode}=data,l=state.lesson,stage=Math.floor(state.frame/n),p=state.frame%n,y=Math.floor(p/ow),x=p%ow;
-  const descriptions={
-    array:['SHAPE · INDEXING · RESHAPE','An image is a rectangular array.','Each brightness value occupies one position. The shape tells APL how to arrange the values; it does not change them.'],
-    transform:['SCALAR EXTENSION · COMPARISON · AXES','One expression. Every pixel.','Apply arithmetic to the whole array, or rearrange its axes. Follow the selected input position to its output.'],
-    blur:['STENCIL · REDUCTION · RANK','A blur is a weighted neighborhood.','Nearby pixels contribute more. Apply the same one-dimensional Gaussian across rows, then down columns.'],
-    sobel:['CORRELATION · SIGNED VALUES · MAGNITUDE','An edge is a change in brightness.','Positive and negative weights measure horizontal and vertical changes. Combine both responses to reveal edge strength.'],
-    sharpen:['ARRAY ARITHMETIC · COMPOSITION','Subtract the blur. Add the detail.','A blurred copy contains smooth structure. The difference holds detail; add a scaled amount of it back to the source.']
-  };
-  const [concept,title,description]=descriptions[l];text('concept',concept);text('title',title);text('description',description);
-  let middle=a,middleLabel='02 / PIXEL POSITIONS',middleCaption='⍳ generates positions. Reshape arranges them into rows.', signedMiddle=false;
-  if(l==='array')middle=Array.from({length:n},(_,i)=>i+1);
-  if(l==='transform'){middleLabel='02 / SOURCE POSITIONS';middle=Array.from({length:n},(_,i)=>i+1);middleCaption='The indices make an axis change easier to follow.';}
-  if(l==='blur'){middle=data.horizontal;middleLabel='02 / HORIZONTAL PASS';middleCaption='Each row is filtered independently: Row⍤1.';}
-  if(l==='sobel'){middle=data.gx;middleLabel='02 / HORIZONTAL GRADIENT';middleCaption='Signed response: positive means brighter to the right.';signedMiddle=true;}
-  if(l==='sharpen'){middle=data.detail;middleLabel='02 / DETAIL = INPUT − BLUR';middleCaption='Positive and negative detail stays unclipped.';signedMiddle=true;}
-  let inputP=p;
-  if(l==='transform'&&$('operation').value==='transpose')inputP=x*w+y;
-  if(l==='transform'&&$('operation').value==='flip')inputP=y*w+w-1-x;
-  const neighbors=[];
-  if(l==='blur')for(let d=-data.radius;d<=data.radius;d++){const ny=stage?y+d:y,nx=stage?x:x+d;if(ny>=0&&ny<h&&nx>=0&&nx<w)neighbors.push(ny*w+nx);}
-  if(l==='sobel')for(let j=-1;j<=1;j++)for(let i=-1;i<=1;i++)if(y+j>=0&&y+j<h&&x+i>=0&&x+i<w)neighbors.push((y+j)*w+x+i);
-  grid('input-grid',a,h,w,{active:inputP,neighbors:l==='blur'&&stage?[]:neighbors});
-  grid('middle-grid',middle,h,w,{active:l==='transform'?inputP:p,neighbors:l==='blur'&&stage?neighbors:[],revealed:data.stages===2&&stage===0?p:Infinity,signed:signedMiddle,scale:signedMiddle?Math.max(1,...middle.map(Math.abs)):255,indexView:l==='array'||l==='transform'});
-  grid('output-grid',output,oh,ow,{active:p,revealed:data.stages===2&&stage===0?-1:p,scale:l==='sobel'?Math.max(1,...output):255});
-  text('input-shape',`${h} × ${w}`);text('middle-shape',`${h} × ${w}`);text('output-shape',`${oh} × ${ow}`);text('middle-label',middleLabel);text('middle-caption',middleCaption);
-  text('output-label',l==='sobel'?'03 / EDGE MAGNITUDE':'03 / RESULT');
-  text('output-caption',l==='sobel'?'√(gx² + gy²), scaled for display; values are unchanged.':l==='sharpen'?'Display clipped to 0–255; the numbers retain overshoot.':'Faint cells are upcoming steps. Select a cell or scrub to it.');
-  $('position').value=state.frame;text('progress',`${state.frame+1} / ${n*data.stages}`);
-  inspect(p,y,x,inputP,stage);
-  movingPixel?.remove();
-  if(l==='transform'&&$('operation').value==='transpose'&&!matchMedia('(prefers-reduced-motion: reduce)').matches){
-    const from=$('input-grid').children[inputP].getBoundingClientRect(),to=$('output-grid').children[p].getBoundingClientRect();
-    if(from.top>=0&&to.bottom<=innerHeight){
-      movingPixel=document.createElement('div');movingPixel.className='moving-pixel';movingPixel.setAttribute('aria-hidden','true');movingPixel.textContent=a[inputP];
-      Object.assign(movingPixel.style,{left:`${from.left}px`,top:`${from.top}px`,width:`${from.width}px`,height:`${from.height}px`});document.body.append(movingPixel);
-      const tile=movingPixel;const motion=tile.animate([{transform:'translate(0,0)'},{transform:`translate(${to.left-from.left}px,${to.top-from.top}px)`}],{duration:state.timer?Math.min(+$('speed').value*.85,450):450,easing:'ease-in-out'});motion.onfinish=()=>tile.remove();
-    }
-  }
-  if(focusGrid)$(focusGrid).querySelector(`[data-index="${focusIndex}"]`)?.focus({preventScroll:true});
-}
-function inspect(p,y,x,inputP,stage){
-  const l=state.lesson,{a,h,w,mode,radius,sigma,amount,output}=data;
-  let expression='',explanation='',arithmetic='',terms=[],glyphs=[],heading='',result=output[p];
-  text('pixel-title',`Row ${y+1}, column ${x+1}`);
-  if(l==='blur'){
-    heading=stage?'Pass 2 · down the columns':'Pass 1 · across the rows';
-    expression=`x ← (⍳1+2×r)-r+1    ⍝ ⎕IO←1\nk ← *¯0.5×(x÷s)*2\nk ← k÷+/k\nRow ← {(k mode) ImageOps.FilterRow ⍵}\n${stage?'result ← ⍉Row⍤1⊢⍉horizontal':'horizontal ← Row⍤1⊢plane'}\n⍝ FilterRow uses {+/k×⍵}⌺(≢k) on padded rows`;
-    explanation='⌺ supplies a neighborhood, × multiplies corresponding values, and +/ adds the contributions. Explicit padding implements the selected boundary rule.';
-    const source=stage?data.horizontal:a;
-    terms=data.kernel.map((weight,i)=>{const d=i-radius;return {weight,value:sample(source,h,w,y+(stage?d:0),x+(stage?0:d),mode)};});
-    result=stage?output[p]:data.horizontal[p];arithmetic=terms.map(t=>`${number(t.weight)} × ${number(t.value)}`).join(' + ');glyphs=['⍳ offsets','* exponential','+/ reduction','⌺ stencil','⍤ rank'];
-  }else if(l==='sobel'){
-    heading=stage?'Combine the two directions':'Measure horizontal change';
-    expression=`kx ← 3 3⍴¯1 0 1 ¯2 0 2 ¯1 0 1\nky ← ⍉kx\ngx ← (kx mode) ImageOps.Correlate plane\ngy ← (ky mode) ImageOps.Correlate plane\nmagnitude ← ((gx*2)+gy*2)*0.5`;
-    explanation='Each window is multiplied by the kernel as written (correlation). A weighted sum is also an inner product: (,kernel)+.×,window. Signs indicate direction; magnitude combines both.';
-    terms=(stage?sobelY:sobelX).map((weight,i)=>({weight,value:sample(a,h,w,y+Math.floor(i/3)-1,x+i%3-1,mode)}));
-    result=stage?output[p]:data.gx[p];arithmetic=stage?`Vertical sum = ${number(data.gy[p])}. Magnitude = √(${number(data.gx[p])}² + ${number(data.gy[p])}²).`:`Horizontal sum = ${number(data.gx[p])}. The left column is subtracted from the right column.`;glyphs=['⍴ reshape','⍉ transpose','+.× inner product','* power'];
-  }else if(l==='sharpen'){
-    heading=stage?'Add scaled detail':'Separate detail from structure';
-    expression=`blurred ← (r s mode) ImageOps.BlurPlane plane\ndetail ← plane-blurred\nresult ← plane+amount×detail`;
-    explanation='These operations act on complete arrays. The detail layer can be negative; keep that sign until the final display or file conversion.';
-    const b=a[p]-data.detail[p];arithmetic=stage?`${number(a[p])} + ${amount} × ${number(data.detail[p])}`:`${number(a[p])} − ${number(b)}`;result=stage?output[p]:data.detail[p];glyphs=['− difference','× scale','+ combine'];
-  }else if(l==='array'){
-    heading='Shape gives values their positions';expression=`⎕IO ← 1\nplane ← ${h} ${w}⍴values\n⍴plane                 ⍝ ${h} ${w}\nplane[${y+1};${x+1}]            ⍝ ${a[p]}`;explanation='The numeric grid is the image. Reshape fills rows in order; indexing selects one position. A color image adds a leading channel axis.';arithmetic=`Position ${p+1} in the flattened array becomes row ${y+1}, column ${x+1}.`;glyphs=['⍴ shape / reshape','⍳ indices','[;] indexing'];
-  }else{
-    const op=$('operation').value;heading={invert:'Subtract every value from 255',threshold:'A comparison creates a mask',flip:'Reverse the last axis',transpose:'Swap the two spatial axes'}[op];
-    expression={invert:'result ← 255-plane',threshold:`mask ← plane≥${$('threshold').value}\nresult ← 255×mask`,flip:'result ← ⌽plane',transpose:'result ← ⍉plane'}[op];
-    explanation=op==='transpose'?'On a matrix, transpose swaps rows and columns. On a rank-three color image, use a plane operation with ⍤2 to avoid swapping channels into a spatial axis.':'The expression describes the whole array. The selected pixel shows one contribution to that result.';
-    arithmetic=`Input [${Math.floor(inputP/w)+1};${inputP%w+1}] = ${a[inputP]}; output [${y+1};${x+1}] = ${number(output[p])}.`;glyphs=['255 scalar extension','≥ comparison','⌽ reverse','⍉ transpose'];
-  }
-  text('stage-title',heading);text('expression',expression);text('code-explanation',explanation);text('arithmetic',arithmetic);text('pixel-result',`This step → ${number(result)}`);
-  $('weights').replaceChildren(...terms.map(t=>{const box=document.createElement('div');box.className='weight';box.textContent=`${number(t.weight)} × ${number(t.value)}`;const sub=document.createElement('small');sub.textContent=`= ${number(t.weight*t.value)}`;box.append(sub);return box;}));
-  $('glyphs').replaceChildren(...glyphs.map(g=>{const span=document.createElement('span');span.textContent=g;return span;}));
-}
-function renderLarge(){
-  const {pixels,h,w}=fixture($('sample').value,+$('channel').value,112,144);
-  const {radius,sigma,amount,mode}=data;
-  let result=pixels,oh=h,ow=w;
-  if(state.lesson==='blur')result=blur(pixels,h,w,radius,sigma,mode).output;
-  if(state.lesson==='sobel')result=sobel(pixels,h,w,mode).magnitude;
-  if(state.lesson==='sharpen')result=unsharp(pixels,h,w,radius,sigma,amount,mode).output;
-  if(state.lesson==='transform'){result=transform(pixels,h,w,$('operation').value,+$('threshold').value);if($('operation').value==='transpose'){oh=w;ow=h;}}
-  function paint(id,values,height,width,scale=255){const canvas=$(id);canvas.width=width;canvas.height=height;const ctx=canvas.getContext('2d'),image=ctx.createImageData(width,height);values.forEach((v,i)=>{const byte=Math.round(Math.max(0,Math.min(255,v/scale*255)));image.data.set([byte,byte,byte,255],4*i);});ctx.putImageData(image,0,0);}
-  paint('large-input',pixels,h,w);paint('large-output',result,oh,ow,state.lesson==='sobel'?Math.max(1,...result):255);
-  text('large-output-label',`RESULT · ${oh} × ${ow}`);
-  text('large-caption','This 112 × 144 test image uses the same controls. Radius and sigma stay in pixel units, so the blur covers a smaller fraction of the image. Playback explains the small grid above.');
-}
-function advance(){if(state.frame>=data.n*data.stages-1){stop();return;}state.frame++;render();}
-$('play').addEventListener('click',()=>{if(state.timer){stop();return;}if(state.frame===data.n*data.stages-1)state.frame=0;text('play','Pause');$('pixel-result').setAttribute('aria-live','off');state.timer=setInterval(advance,+$('speed').value);render();});
-$('step').addEventListener('click',()=>{stop();advance();});$('reset').addEventListener('click',()=>{stop();state.frame=0;render();});
-$('position').addEventListener('input',()=>{stop();state.frame=+$('position').value;render();});
-$('speed').addEventListener('change',()=>{if(state.timer){clearInterval(state.timer);state.timer=setInterval(advance,+$('speed').value);}});
-for(const id of ['sample','channel','operation','boundary','radius','sigma','amount','threshold'])$(id).addEventListener('input',configure);
-document.querySelectorAll('[data-lesson]').forEach(b=>b.addEventListener('click',()=>{state.lesson=b.dataset.lesson;configure();}));
-document.addEventListener('visibilitychange',()=>{if(document.hidden)stop();});
-configure();
+import {gaussian,blur,sobel,fixture,sample} from './model.mjs';
+const $=id=>document.getElementById(id);
+const ink='#34363d',muted='#858994',purple='#6465c6',orange='#c88945';
+const values=[15,15,15,15,15,15,15,15,40,40,15,15,15,15,15,40,220,40,15,15,15,15,40,220,220,220,40,15,15,15,15,15,15,15,15];
+const row=[20,20,20,60,220,220,60,20,20],step=[30,30,30,30,220,220,220,220,220];
+const diagrams=new Map(),animations=new Map();
+let inversion=0,inverted=false,invertFrame;
+const fmt=n=>Number(n.toFixed(2)).toString();
+function setup(id,draw){const canvas=$(id);const render=()=>{const w=canvas.clientWidth,h=canvas.clientHeight,dpr=devicePixelRatio||1;canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);ctx.clearRect(0,0,w,h);draw(ctx,w,h);};diagrams.set(id,render);new ResizeObserver(render).observe(canvas);render();}
+function label(c,text,x,y,color=muted,size=14){c.fillStyle=color;c.font=`${size}px APL, monospace`;c.textAlign='center';c.textBaseline='middle';c.fillText(text,x,y);}
+function tile(c,v,x,y,size,number=false,gap=2){const gray=Math.round(Math.max(0,Math.min(255,v)));c.fillStyle=`rgb(${gray},${gray},${gray})`;c.fillRect(x+gap/2,y+gap/2,size-gap,size-gap);if(number)label(c,Math.round(v),x+size/2,y+size/2,gray>125?ink:'#fff',Math.max(12,Math.min(16,size*.29)));}
+function drawGrid(c,a,h,w,x,y,size,{numbers=false,gap=2,gain=1}={}){a.forEach((v,i)=>tile(c,v*gain,x+i%w*size,y+Math.floor(i/w)*size,size,numbers,gap));}
+function slider(id,canvas){$(id).addEventListener('input',()=>{pause(id);diagrams.get(canvas)();});}
+setup('pixels',(c,w,h)=>{const t=+$('reveal').value,size=Math.min((w-24)/7,46),x=(w-7*size)/2,y=(h-5*size)/2;drawGrid(c,values,5,7,x,y,size,{gap:1+8*t});if(t>0){c.globalAlpha=t;values.forEach((v,i)=>label(c,v,x+(i%7+.5)*size,y+(Math.floor(i/7)+.5)*size,v>125?ink:'#fff',Math.max(12,size*.31)));c.globalAlpha=1;}});slider('reveal','pixels');
+setup('invert',(c,w,h)=>{const size=Math.min((w-24)/7,43),x=(w-7*size)/2,y=(h-5*size)/2;const a=values.map(v=>v+(255-2*v)*inversion);drawGrid(c,a,5,7,x,y,size,{numbers:true,gap:4});});
+$('invert-toggle').addEventListener('click',()=>{inverted=!inverted;$('invert-toggle').setAttribute('aria-pressed',String(inverted));$('invert-toggle').textContent=inverted?'Restore the picture':'Invert the picture';cancelAnimationFrame(invertFrame);const start=inversion,end=inverted?1:0,t0=performance.now();function tick(now){const t=matchMedia('(prefers-reduced-motion: reduce)').matches?1:Math.min(1,(now-t0)/650);inversion=start+(end-start)*t;diagrams.get('invert')();if(t<1)invertFrame=requestAnimationFrame(tick);}invertFrame=requestAnimationFrame(tick);});
+setup('transpose',(c,w,h)=>{const t=+$('turn').value,size=Math.min((w-36)/5,(h-60)/5,49);for(let i=0;i<15;i++){const y=Math.floor(i/5),x=i%5,fromX=(w-5*size)/2+x*size,fromY=(h-3*size)/2+y*size,toX=(w-3*size)/2+y*size,toY=(h-5*size)/2+x*size;const xx=fromX+(toX-fromX)*t,yy=fromY+(toY-fromY)*t;c.fillStyle=`hsl(${235+x*7},${30+y*9}%,${77-y*7}%)`;c.fillRect(xx+2,yy+2,size-4,size-4);label(c,i+1,xx+size/2,yy+size/2,ink,16);}label(c,t<.01?'3 rows, 5 columns':t>.99?'5 rows, 3 columns':'Every value keeps its identity',w/2,h-14);});slider('turn','transpose');
+function neighborhood(c,w,h,isEdge){const id=isEdge?'edge-position':'position',a=isEdge?step:row,weights=isEdge?[-1,0,1]:[.25,.5,.25],p=+$ (id).value,i=Math.round(p),size=Math.min((w-20)/9,48),left=(w-9*size)/2,top=45;label(c,'input',w/2,20);a.forEach((v,k)=>tile(c,v,left+k*size,top,size,true,3));c.strokeStyle=purple;c.lineWidth=2;c.strokeRect(left+(p-1)*size+1,top-5,size*3-2,size+10);const neighbors=weights.map((_,k)=>sample(a,1,9,0,i+k-1,'clamp'));const products=weights.map((v,k)=>v*neighbors[k]);const middle=w/2,spacing=Math.min(130,(w-20)/3);for(let k=0;k<3;k++){const xx=middle+(k-1)*spacing;label(c,`${fmt(weights[k])} × ${neighbors[k]}`,xx,top+size+54,k===1?purple:muted,w<430?14:16);label(c,fmt(products[k]),xx,top+size+87,ink,17);if(k<2)label(c,'+',xx+spacing/2,top+size+87,muted,18);}const sum=products.reduce((a,b)=>a+b,0);label(c,`= ${fmt(sum)}`,middle,top+size+123,purple,22);const out=a.map((_,k)=>weights.reduce((total,v,j)=>total+v*sample(a,1,9,0,k+j-1,'clamp'),0));const base=h-25;out.forEach((v,k)=>{const height=(isEdge?v/220:v/255)*40;c.fillStyle=k===i?purple:'#d6d6e9';c.fillRect(left+k*size+3,base-height,size-6,Math.max(1,height));});label(c,isEdge?'difference':'output brightness',w/2,base+15,muted,12);$(isEdge?'edge-caption':'window-caption').textContent=isEdge?`At position ${i+1}: ${neighbors[2]} − ${neighbors[0]} = ${sum}.`:`At position ${i+1}, the weighted average is ${fmt(sum)}.`;}
+setup('window',(c,w,h)=>neighborhood(c,w,h,false));slider('position','window');setup('edge',(c,w,h)=>neighborhood(c,w,h,true));slider('edge-position','edge');
+setup('gaussian',(c,w,h)=>{const sigma=+$('spread').value,k=gaussian(4,sigma),size=Math.min((w-28)/9,55),left=(w-9*size)/2,base=h-60,scale=h-110;k.forEach((v,i)=>{const x=left+i*size;c.fillStyle=i===4?purple:'#b8b8e0';c.fillRect(x+5,base-v*scale,size-10,v*scale);label(c,fmt(v),x+size/2,base-v*scale-15,i===4?purple:muted,w<430?12:14);label(c,i-4,x+size/2,base+20,muted,14);});label(c,'pixel offset',w/2,h-10);$('spread-value').textContent=sigma.toFixed(2);});slider('spread','gaussian');
+const impulse=Array(81).fill(0);impulse[40]=255;const blurred=blur(impulse,9,9,4,1,'clamp');
+setup('passes',(c,w,h)=>{const t=+$('pass').value,first=t<=1,amount=first?t:t-1,from=first?impulse:blurred.horizontal,to=first?blurred.horizontal:blurred.output,a=from.map((v,i)=>v+(to[i]-v)*amount),size=Math.min((w-30)/9,(h-45)/9,32),left=(w-9*size)/2,top=12;drawGrid(c,a,9,9,left,top,size,{gap:2,gain:3});label(c,t<.01?'one bright pixel':first?'spreading across a row':'spreading down the columns',w/2,h-13);$('passes-caption').textContent=t<1?'First, brightness spreads across the row.':'Then each column is blurred. The line becomes a spot.';});slider('pass','passes');
+const source=fixture('shape',0,84,108),edges=sobel(source.pixels,84,108,'clamp').magnitude,edgeMax=Math.max(...edges);
+setup('edge-image',(c,w,h)=>{const t=+$('edge-reveal').value,width=Math.min(w-36,430),height=width*84/108,top=(h-height)/2,left=(w-width)/2,s=width/108;source.pixels.forEach((v,i)=>{const x=i%108,y=Math.floor(i/108);const val=x/108<t?edges[i]/edgeMax*255:v;const b=Math.round(val);c.fillStyle=`rgb(${b},${b},${b})`;c.fillRect(left+x*s,top+y*s,s+.5,s+.5);});c.strokeStyle=purple;c.lineWidth=2;c.beginPath();c.moveTo(left+t*width,top-8);c.lineTo(left+t*width,top+height+8);c.stroke();});slider('edge-reveal','edge-image');
+const playable={position:'window',pass:'passes','edge-position':'edge'};
+function pause(id){const a=animations.get(id);if(a)cancelAnimationFrame(a.frame);animations.delete(id);const b=document.querySelector(`[data-play="${id}"]`);if(b){b.textContent='Play';b.setAttribute('aria-label',b.getAttribute('aria-label').replace(/^Pause /,'Play '));b.setAttribute('aria-pressed','false');}const caption=id==='position'?'window-caption':id==='edge-position'?'edge-caption':null;if(caption)$(caption).setAttribute('aria-live','polite');}
+for(const button of document.querySelectorAll('[data-play]')){button.addEventListener('click',()=>{const id=button.dataset.play;if(animations.has(id)){pause(id);return;}const control=$(id),max=+control.max;let last=performance.now();const animation={frame:0,position:+control.value>=max?0:+control.value};animations.set(id,animation);button.textContent='Pause';button.setAttribute('aria-label',button.getAttribute('aria-label').replace(/^Play /,'Pause '));button.setAttribute('aria-pressed','true');const caption=id==='position'?'window-caption':id==='edge-position'?'edge-caption':null;if(caption)$(caption).setAttribute('aria-live','off');if(+control.value>=max)control.value=0;function tick(now){animation.position=Math.min(max,animation.position+(now-last)*max/10000);control.value=animation.position;last=now;diagrams.get(playable[id])();if(+control.value>=max){pause(id);return;}animation.frame=requestAnimationFrame(tick);}animation.frame=requestAnimationFrame(tick);});}
+function pauseAll(){for(const id of [...animations.keys()])pause(id);cancelAnimationFrame(invertFrame);}
+$('pause-all').addEventListener('click',pauseAll);document.addEventListener('visibilitychange',()=>{if(document.hidden)pauseAll();});
+const observer=new IntersectionObserver(entries=>{for(const entry of entries)if(!entry.isIntersecting){for(const [id,canvas] of Object.entries(playable))if(canvas===entry.target.id)pause(id);if(entry.target.id==='invert')cancelAnimationFrame(invertFrame);}},{threshold:0});for(const id of [...Object.values(playable),'invert'])observer.observe($(id));
+document.fonts.ready.then(()=>diagrams.forEach(render=>render()));
+
+for(const id of ['position','edge-position'])$(id).addEventListener('keydown',event=>{if(event.key==='ArrowLeft'||event.key==='ArrowRight'){event.preventDefault();const control=$(id);control.value=Math.max(0,Math.min(8,Math.round(+control.value)+(event.key==='ArrowRight'?1:-1)));control.dispatchEvent(new Event('input'));}});

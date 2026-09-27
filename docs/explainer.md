@@ -1,52 +1,44 @@
-# Animated explainer development
+# Walkthrough development
 
-The static frontend lives in `web/`. Start it from the repository root with:
+The frontend is a continuous article: **Pictures as arrays**. It replaces the earlier tabbed explorer following the user's request for a simple, illustrated walkthrough and clear prose.
+
+Start it from the repository root:
 
 ```sh
 python3 -m http.server 8765 --bind 127.0.0.1 --directory web
 ```
 
-Visit http://127.0.0.1:8765. Opening the HTML directly as a file is not supported because the application uses JavaScript modules. No package installation, build step, network fonts, or runtime APL service is required. The server only exposes the `web/` directory and binds to loopback.
+Visit http://127.0.0.1:8765. No npm installation, build, or live APL service is required. JavaScript modules require an HTTP server rather than opening the HTML file directly.
 
-## Implemented lessons
+## Article sequence
 
-1. Pixels, shape, reshape, and indexing.
-2. Whole-array inversion, thresholding, horizontal reverse, and rectangular transpose.
-3. Gaussian kernel construction, horizontal/vertical passes, Stencil, reduction, and Rank.
-4. Signed Sobel gradients, kernel products, and gradient magnitude.
-5. Unsharp masking: subtract the blur, then add scaled detail.
+1. Reveal the numbers inside a picture.
+2. Invert all its values with one expression.
+3. Move numbered cells through a transpose.
+4. Slide a weighted neighborhood along a row and show its arithmetic.
+5. Adjust sigma and see normalized Gaussian weights change.
+6. Spread an impulse across rows, then down columns.
+7. Subtract neighbors to find a change; reveal Sobel edges on a larger picture.
 
-The arithmetic lessons use bounded 7×9 arrays, with a separate 112×144 test-image comparison using the same parameters. Inputs include an impulse, step edge, ramp, binary-style shape, and three separate color planes. Selecting a result pixel jumps to the result stage; selecting an intermediate pixel jumps to its stage. Arrow keys navigate within a grid, and each grid has one tab stop. Playback stops on parameter/lesson changes and when the browser tab is hidden.
+Keep each paragraph short and concrete. Show an idea before naming it. Each figure has one focused control, placed immediately after the prose that introduces it. Code follows the visual explanation. New algorithms should become follow-up articles rather than additional controls on this page.
 
-Grid values are rounded for legibility; the inspector shows three decimal places and calculations retain full precision. Upcoming cells are faint. Signed values use explicit signs and a diverging color scheme. Grayscale and sharpened outputs clip only their display colors; Sobel magnitude scales its display colors to the current maximum. Boundary samples outside the grid appear in the arithmetic inspector.
+The explanatory format draws on Bartosz Ciechanowski's Mechanical Watch and Airfoil articles, linked in the footer. The prose and diagrams are original.
 
-## Numerical verification
+## Rendering and interaction
+
+Canvas diagrams size to their container and account for device pixel ratio. Sliders support pointer, touch, and keyboard input. Arrow keys move the neighborhood examples one pixel at a time. Play controls advance only their local diagram and stop at the end. Offscreen diagrams and hidden tabs pause; a footer button pauses all playback. Reduced-motion preferences make the invert transition immediate. Other motion is controlled directly by sliders or explicitly started with Play.
+
+The two-pass diagram blends between three computed arrays to expose their shapes; it is not a simulation of interpreter scheduling. Its brightness is amplified by a fixed factor, as noted beside the example. Edge magnitude is scaled for display. The model retains full-precision values.
+
+## Verification
 
 ```sh
 python3 tests/run.py --export
 node --test tests/browser-model.test.mjs
 ```
 
-The Python runner generates independent fixtures and a direct 2-D oracle, runs the actual Dyalog implementation, checks BMP output bytes, and only then exports Dyalog results to `web/fixtures/apl-reference.json`. Node's built-in test runner checks browser calculations against the exported results: 72 Gaussian cases and 24 cases each covering Sobel and sharpening. It also checks rectangular transformations and threshold equality.
+The Dyalog suite is checked against an independent Python oracle before exporting results. Node checks the shared browser model against 72 blur and 24 Sobel/sharpening cases, plus rectangular transforms. The article uses a subset of this model. It does not run APL in the browser.
 
-Regenerate and commit the fixtures when numerical code changes. The frontend does not fetch this file at runtime; it is verification data. Its JavaScript model is explicitly identified in the page. The moving-window animation illustrates mathematical dependencies rather than the interpreter's actual scheduling.
+Browser checks cover the article render, numeric reveal, neighborhood captions, playback advancement, global pause, and a 390px layout without horizontal overflow. Static canvas descriptions and captions explain the diagrams in text; this is not a comprehensive accessibility audit.
 
-## UI verification performed
-
-Checked in the Codex in-app browser:
-
-- Gaussian initial render, Step, output selection, and transition into the vertical pass.
-- Sobel signed-ramp arithmetic and combined magnitude.
-- Rectangular transpose mapping: input `[2;4]` becomes output `[4;2]`, retaining its value.
-- Color-plane selection, sharpening, Play advancing position, and Pause.
-- Arrow-key cell navigation with focus retained after rendering.
-- 390px phone viewport without horizontal overflow; smaller numeric type keeps signed values inside cells.
-- No browser error/warning logs during these flows.
-
-The page respects reduced-motion preferences by disabling transitions and never starts playback automatically. This behavior is implemented in CSS; reduced-motion OS settings were not changed during verification.
-
-## Next frontend work
-
-Continue with median filtering and morphology. Transpose moves a highlighted tile when source and destination are both visible, with linked selections as the fallback on narrow screens or under reduced motion. User-supplied images, actual APL execution, and deployment are not part of this first local preview.
-
-The bundled APL385 font is public-domain artwork by Adrian Smith; see `web/fonts/NOTICE.md` for attribution and source links.
+APL385 is public-domain font artwork by Adrian Smith; attribution is in `web/fonts/NOTICE.md`.

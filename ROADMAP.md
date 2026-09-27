@@ -2,7 +2,7 @@
 
 Build a reliable Dyalog image-processing library and an animated explainer that makes its array operations visible. The first release should take a reader from pixels to Gaussian blur and Sobel edges; later releases introduce nonlinear filters, statistics, regions, and dynamic programming.
 
-Completed items are checked below. The Gaussian core and BMP adapter are implemented and tested; the first local animated lessons, Sobel, and sharpening are also implemented; a larger test-image preview is included; later operations remain planned. See [the source review](docs/library-review.md) for the initial findings and [local setup](docs/development.md) for runtime instructions.
+Completed items are checked below. The Gaussian core and BMP adapter are implemented and tested; Sobel and sharpening are also implemented. The frontend is a linear illustrated walkthrough; later operations remain planned. See [the source review](docs/library-review.md) for the initial findings and [local setup](docs/development.md) for runtime instructions.
 
 ## 0. Establish a runnable baseline
 
@@ -41,10 +41,10 @@ Completed items are checked below. The Gaussian core and BMP adapter are impleme
 
 **Done when:** a reader can step through a single output pixel, then run the same operation over the image. A constant plane has zero interior Sobel response; horizontal and vertical ramps produce the expected signed direction; sharpening strength zero returns the original.
 
-**Implemented:** five local lessons, selectable pixels, playback/step/scrub controls, radius/sigma/boundary/strength controls, RGB teaching planes, keyboard grid navigation, and mobile layouts. A 112×144 test image shows the same operations at a larger scale. The JavaScript model agrees with 96 exported Dyalog cases.
+**Current presentation:** a continuous article with short paragraphs and one focused demonstration at a time, following the user’s preference for the clear explanatory style of ciechanow.ski. Diagrams cover pixel values, inversion, transpose, weighted neighborhoods, Gaussian weights, two passes, and edges. The shared model still agrees with 96 exported Dyalog cases. Sharpening remains available in the library; it is not added to the introductory article.
 
-- [x] Add a larger source-image preview alongside the small teaching grid.
-- [x] Animate actual pixel movement for transpose when both cells are visible; retain linked selections for reduced motion and narrow screens.
+- [x] Add an image-scale Sobel reveal after the small neighborhood explanation.
+- [x] Animate transpose within a single figure using a directly controlled slider.
 
 **Release 1 scope:** grayscale lessons plus one color-plane explanation, Gaussian blur, Sobel, and unsharp masking. Use both tiny numeric fixtures and a larger image preview. Avoid waiting for later algorithms before making this usable.
 
@@ -90,6 +90,10 @@ Start with a full 3×3 structuring element, then add a cross-shaped mask. Show a
 **Animation:** color the energy map, reveal candidate predecessor costs for one cell, fill the cumulative-cost table, trace the winning path, then remove one seam. Provide a width control and a comparison with ordinary resizing.
 
 **Done when:** each seam is connected and removes exactly one pixel per row, tiny cases match exhaustive minimum-path search, and repeated removal respects minimum dimensions. Define deterministic tie-breaking so animations are reproducible.
+
+## Editorial direction
+
+Use a linear article, inspired by the explanatory pacing of [Mechanical Watch](https://ciechanow.ski/mechanical-watch/) and [Airfoil](https://ciechanow.ski/airfoil/). Write original text and diagrams. Keep sentences short and concrete. Introduce names after the reader has seen the idea. Let each diagram answer the preceding paragraph’s question, with one useful control. Add later algorithms as short follow-up articles instead of expanding a control-heavy dashboard.
 
 ## Shared animation and documentation design
 
