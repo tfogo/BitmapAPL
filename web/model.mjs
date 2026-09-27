@@ -56,3 +56,32 @@ export function fixture(name, channel = 0, h = 7, w = 9) {
   });
   return {h, w, pixels};
 }
+
+export function median(a, h, w, radius = 1, mode = 'clamp') {
+  if (!Number.isInteger(radius) || radius < 0) throw Error('Invalid median radius');
+  return a.map((_, p) => {
+    const values = [];
+    for (let y = -radius; y <= radius; y++) for (let x = -radius; x <= radius; x++)
+      values.push(sample(a, h, w, Math.floor(p / w) + y, p % w + x, mode));
+    values.sort((x, y) => x - y);
+    return values[Math.floor(values.length / 2)];
+  });
+}
+export function morphology(a, h, w, operation, footprint = 'square') {
+  if (!['square', 'cross'].includes(footprint)) throw Error('Invalid footprint');
+  if (a.length !== h*w || h < 1 || w < 1 || a.some(v => v !== 0 && v !== 1)) throw Error('Expected binary plane');
+  if (operation === 'open') return morphology(morphology(a,h,w,'erode',footprint),h,w,'dilate',footprint);
+  if (operation === 'close') return morphology(morphology(a,h,w,'dilate',footprint),h,w,'erode',footprint);
+  if (!['dilate', 'erode'].includes(operation)) throw Error('Invalid operation');
+  const erosion = operation === 'erode';
+  return a.map((_, p) => {
+    let result = erosion ? 1 : 0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      if (footprint === 'cross' && dx && dy) continue;
+      const y = Math.floor(p / w) + dy, x = p % w + dx;
+      const v = y < 0 || x < 0 || y >= h || x >= w ? (erosion ? 1 : 0) : a[y*w+x];
+      result = erosion ? Math.min(result,v) : Math.max(result,v);
+    }
+    return result;
+  });
+}

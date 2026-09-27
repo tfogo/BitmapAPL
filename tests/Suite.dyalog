@@ -43,6 +43,40 @@
         result←'clamp' #.ImageOps.Sobel plane
         {}'ramp x sign and scale' Assert 8=result.gx[2;2]
         {}'ramp y sign and scale' Assert 40=result.gy[2;2]
+        :For case :In spec.medians
+            plane←case.shape⍴case.pixels
+            actual←(case.radius case.mode) #.ImageOps.Median plane
+            {}'median shape' Assert case.shape≡⍴actual
+            {}'median sorted-window oracle' Assert case.expected Close ,actual
+            case.apl←,actual
+        :EndFor
+        :For case :In spec.morphs
+            plane←case.shape⍴case.pixels
+            actual←(case.operation case.footprint) #.ImageOps.Morphology plane
+            {}'morphology shape' Assert case.shape≡⍴actual
+            {}'morphology oracle' Assert case.expected Close ,actual
+            case.apl←,actual
+            :If (⊂case.operation)∊'open' 'close'
+                {}'opening/closing idempotence' Assert actual Close (case.operation case.footprint) #.ImageOps.Morphology actual
+            :EndIf
+            :If (⊂case.operation)∊'erode' 'open'
+                {}'anti-extensive' Assert ∧/,actual≤plane
+            :Else
+                {}'extensive' Assert ∧/,actual≥plane
+            :EndIf
+        :EndFor
+        {}'median negative radius rejected' Assert Fails '(¯1 ''clamp'') #.ImageOps.Median 2 2⍴1'
+        {}'median fractional radius rejected' Assert Fails '(0.5 ''clamp'') #.ImageOps.Median 2 2⍴1'
+        {}'median empty plane rejected' Assert Fails '(1 ''clamp'') #.ImageOps.Median 0 2⍴1'
+        {}'median invalid boundary rejected' Assert Fails '(0 ''other'') #.ImageOps.Median 2 2⍴1'
+        {}'nonbinary morphology rejected' Assert Fails '(''dilate'' ''square'') #.ImageOps.Morphology 2 2⍴2'
+        {}'invalid footprint rejected' Assert Fails '(''dilate'' ''other'') #.ImageOps.Morphology 2 2⍴1'
+        {}'invalid morphology rejected' Assert Fails '(''other'' ''square'') #.ImageOps.Morphology 2 2⍴1'
+        ⎕IO←1
+        {}'median independent of caller origin' Assert (2 2⍴1)≡(1 'clamp') #.ImageOps.Median 2 2⍴1
+        {}'morphology independent of caller origin' Assert (2 2⍴1)≡('erode' 'cross') #.ImageOps.Morphology 2 2⍴1
+        ⎕IO←0
+        ⎕←'PASS: ',(⍕≢spec.medians),' median and ',(⍕≢spec.morphs),' morphology oracle cases; idempotence and validation'
         {}(⎕JSON spec) ⎕NPUT (folder,'/verified.json') 1
         kernel←#.ImageOps.GaussianKernel 4 2
         {}'kernel sums to one' Assert 1 Close +/kernel

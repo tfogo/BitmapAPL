@@ -51,6 +51,28 @@ def correlate(plane, kernel, mode):
             for y in range(len(plane)) for x in range(len(plane[0]))]
 
 
+def median_reference(plane, radius, mode):
+    return [sorted(sample(plane, y + dy, x + dx, mode)
+                   for dy in range(-radius, radius + 1) for dx in range(-radius, radius + 1))
+            [(2 * radius + 1)**2 // 2]
+            for y in range(len(plane)) for x in range(len(plane[0]))]
+
+
+def morphology_reference(plane, operation, footprint):
+    if operation in ('open', 'close'):
+        first, second = ('erode', 'dilate') if operation == 'open' else ('dilate', 'erode')
+        values = morphology_reference(plane, first, footprint)
+        width = len(plane[0])
+        return morphology_reference([values[i:i+width] for i in range(0, len(values), width)], second, footprint)
+    exterior = int(operation == 'erode')
+    reduce = min if exterior else max
+    offsets = [(dy, dx) for dy in range(-1, 2) for dx in range(-1, 2)
+               if footprint == 'square' or abs(dx) + abs(dy) <= 1]
+    return [reduce(plane[y+dy][x+dx] if 0 <= y+dy < len(plane) and 0 <= x+dx < len(plane[0]) else exterior
+                   for dy, dx in offsets)
+            for y in range(len(plane)) for x in range(len(plane[0]))]
+
+
 def main():
     if not shutil.which('dyalog'):
         raise SystemExit('Dyalog is missing from PATH; see docs/development.md')
@@ -99,7 +121,26 @@ def main():
                     gx=gx, gy=gy, magnitude=[math.hypot(x, y) for x, y in zip(gx, gy)],
                     correlation=correlate(plane, arbitrary, mode),
                     unsharp=[p + 1.5 * (p - b) for p, b in zip(flat, blurred)]))
-        (folder / 'oracle.json').write_text(json.dumps(dict(cases=cases, edges=edge_cases, pixels=pixels,
+        medians = []
+        for plane in planes + [[[0.5, -2.3, 0.5], [255, 30, 30], [0, 30, 30]]]:
+            for radius in [0, 1, 3]:
+                for mode in ['zero', 'clamp', 'reflect']:
+                    medians.append(dict(shape=[len(plane), len(plane[0])], pixels=sum(plane, []),
+                                        radius=radius, mode=mode, expected=median_reference(plane, radius, mode)))
+        # Exhaust all 2×3 binary planes, then exercise a speck, a hole, and a border-touching block.
+        shapes = [[[int(bits & (1 << (y*3+x)) != 0) for x in range(3)] for y in range(2)]
+                  for bits in range(64)]
+        shapes += [[[int(1 <= y <= 5 and 1 <= x <= 5 and (y,x) != (3,3))
+                     if (y,x) != (0,0) else 1 for x in range(7)] for y in range(7)],
+                   [[1]], [[0]], [[1,0,1,1,0]], [[1],[0],[1]]]
+        morphs = []
+        for plane in shapes:
+            for footprint in ['square', 'cross']:
+                for operation in ['dilate', 'erode', 'open', 'close']:
+                    morphs.append(dict(shape=[len(plane), len(plane[0])], pixels=sum(plane, []),
+                                       operation=operation, footprint=footprint,
+                                       expected=morphology_reference(plane, operation, footprint)))
+        (folder / 'oracle.json').write_text(json.dumps(dict(cases=cases, edges=edge_cases, medians=medians, morphs=morphs, pixels=pixels,
                                                           invalid=list(invalid))))
         escaped = str(folder).replace("'", "''")
         runner = folder / 'run.apls'
@@ -129,7 +170,7 @@ def main():
             target = ROOT / 'web' / 'fixtures' / 'apl-reference.json'
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(json.dumps(dict(schema=1, generator='Dyalog ImageOps',
-                cases=verified['cases'], edges=verified['edges']), separators=(',', ':')) + '\n')
+                cases=verified['cases'], edges=verified['edges'], medians=verified['medians'], morphs=verified['morphs']), separators=(',', ':')) + '\n')
             print('Exported Dyalog results to web/fixtures/apl-reference.json')
         print('PASS: independent BMP byte checks, round trips, clipping, and blur output')
 

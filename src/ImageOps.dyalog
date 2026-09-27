@@ -109,4 +109,63 @@
         blurred←(r s mode) BlurPlane plane
         R←plane+amount×plane-blurred
     ∇
+    ∇ R←options Median plane;radius;mode;padded;h;w;side;Middle;⎕IO
+        ⍝ Full odd square neighborhood. Preserve signed/fractional values.
+        ⎕IO←0
+        radius mode←options
+        :If (0≠≢⍴radius)∨(radius<0)∨radius≠⌊radius
+            ⎕SIGNAL 11
+        :EndIf
+        :If (2≠≢⍴plane)∨0∊⍴plane
+            ⎕SIGNAL 11
+        :EndIf
+        h w←⍴plane
+        side←1+2×radius
+        padded←{(radius mode) PadRow ⍵}⍤1⊢plane
+        padded←⍉{(radius mode) PadRow ⍵}⍤1⊢⍉padded
+        Middle←{v←,⍵ ⋄ sorted←v[⍋v] ⋄ sorted[⌊(≢v)÷2]}
+        R←Middle⌺(side side)⊢padded
+        R←R[radius+⍳h;radius+⍳w]
+    ∇
+
+    ∇ R←options Morphology plane;operation;footprint;mask;h;w;padded;values;⎕IO
+        ⍝ Binary 3×3 square/cross. Neutral exterior: 0 for dilation, 1 for erosion.
+        ⎕IO←0
+        operation footprint←options
+        :If (2≠≢⍴plane)∨0∊⍴plane
+            ⎕SIGNAL 11
+        :EndIf
+        :If ~∧/,plane∊0 1
+            ⎕SIGNAL 11
+        :EndIf
+        :Select footprint
+        :Case 'square'
+            mask←9⍴1
+        :Case 'cross'
+            mask←0 1 0 1 1 1 0 1 0
+        :Else
+            ⎕SIGNAL 11
+        :EndSelect
+        :Select operation
+        :Case 'open'
+            R←('dilate' footprint) Morphology ('erode' footprint) Morphology plane
+        :Case 'close'
+            R←('erode' footprint) Morphology ('dilate' footprint) Morphology plane
+        :CaseList 'dilate' 'erode'
+            h w←⍴plane
+            values←plane
+            :If operation≡'erode'
+                values←1-plane
+            :EndIf
+            padded←{(1 'zero') PadRow ⍵}⍤1⊢values
+            padded←⍉{(1 'zero') PadRow ⍵}⍤1⊢⍉padded
+            R←{⌈/mask/,⍵}⌺3 3⊢padded
+            R←R[1+⍳h;1+⍳w]
+            :If operation≡'erode'
+                R←1-R
+            :EndIf
+        :Else
+            ⎕SIGNAL 11
+        :EndSelect
+    ∇
 :EndNamespace
