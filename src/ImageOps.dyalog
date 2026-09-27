@@ -261,4 +261,148 @@
         R.areas←{+/flat=⍵}¨R.ids
         R.count←≢R.ids
     ∇
+    ∇ R←NonMax gradients;gx;gy;m;h;w;y;x;d;dy;dx;before;after;⎕IO
+        ⍝ Four direction bins. Discard outer border; break plateaus toward forward side.
+        ⎕IO←0
+        gx←gradients.gx ⋄ gy←gradients.gy ⋄ m←gradients.magnitude
+        h w←⍴m
+        R←⎕NS ''
+        R.direction←(⍴m)⍴0
+        R.thin←(⍴m)⍴0
+        :For y :In ⍳h
+            :For x :In ⍳w
+                d←0
+                :If (|gy[y;x])>0.4142135623730951×|gx[y;x]
+                    d←2
+                    :If (|gx[y;x])>0.4142135623730951×|gy[y;x]
+                        d←1+2×(gx[y;x]×gy[y;x])<0
+                    :EndIf
+                :EndIf
+                :If m[y;x]≤1E¯10
+                    d←0
+                :EndIf
+                R.direction[y;x]←45×d
+                :If (y>0)∧(x>0)∧(y<h-1)∧x<w-1
+                    dy dx←⊃(0 1)(1 1)(1 0)(1 ¯1)[d]
+                    before←m[y-dy;x-dx] ⋄ after←m[y+dy;x+dx]
+                    :If (m[y;x]≥before-1E¯10)∧m[y;x]>after+1E¯10
+                        R.thin[y;x]←m[y;x]
+                    :EndIf
+                :EndIf
+            :EndFor
+        :EndFor
+    ∇
+
+    ∇ R←thresholds Hysteresis thin;low;high;Grow
+        low high←thresholds
+        :If (low≤0)∨high<low
+            ⎕SIGNAL 11
+        :EndIf
+        :If (2≠≢⍴thin)∨0∊⍴thin
+            ⎕SIGNAL 11
+        :EndIf
+        R←⎕NS ''
+        R.weak←thin≥low
+        R.strong←thin≥high
+        Grow←{R.weak∧('dilate' 'square') Morphology ⍵}
+        R.edges←(Grow⍣≡) R.strong
+    ∇
+
+    ∇ R←options Canny plane;radius;sigma;low;high;gradients;suppressed;linked
+        radius sigma low high←options
+        R←⎕NS ''
+        R.smoothed←(radius sigma 'clamp') BlurPlane plane
+        gradients←'clamp' Sobel R.smoothed
+        R.gx←gradients.gx ⋄ R.gy←gradients.gy ⋄ R.magnitude←gradients.magnitude
+        suppressed←NonMax gradients
+        R.direction←suppressed.direction ⋄ R.thin←suppressed.thin
+        linked←(low high) Hysteresis R.thin
+        R.weak←linked.weak ⋄ R.strong←linked.strong ⋄ R.edges←linked.edges
+    ∇
+
+    ∇ R←Energy plane;gradients
+        gradients←'clamp' Sobel plane
+        R←gradients.magnitude
+    ∇
+
+    ∇ R←MinimumSeam energy;h;w;y;x;candidates;costs;parent;last;⎕IO
+        ⍝ Backward energy; ties choose smallest predecessor column, then endpoint.
+        ⎕IO←0
+        :If (2≠≢⍴energy)∨0∊⍴energy
+            ⎕SIGNAL 11
+        :EndIf
+        :If ∨/,energy<0
+            ⎕SIGNAL 11
+        :EndIf
+        h w←⍴energy
+        R←⎕NS ''
+        R.cost←energy
+        R.parents←(h w)⍴¯1
+        :For y :In 1+⍳h-1
+            :For x :In ⍳w
+                candidates←x+¯1 0 1
+                candidates←candidates/⍨(candidates≥0)∧candidates<w
+                costs←R.cost[y-1;candidates]
+                parent←candidates[⊃⍋costs]
+                R.parents[y;x]←parent
+                R.cost[y;x]←energy[y;x]+R.cost[y-1;parent]
+            :EndFor
+        :EndFor
+        last←⊃⍋R.cost[h-1;]
+        R.total←R.cost[h-1;last]
+        R.seam←h⍴0 ⋄ R.seam[h-1]←last
+        :For y :In ⌽1+⍳h-1
+            R.seam[y-1]←R.parents[y;R.seam[y]]
+        :EndFor
+    ∇
+
+    ∇ R←seam RemoveSeam plane;h;w;keep;⎕IO
+        ⎕IO←0
+        :If (2≠≢⍴plane)∨0∊⍴plane
+            ⎕SIGNAL 11
+        :EndIf
+        h w←⍴plane
+        :If (w≤1)∨(1≠≢⍴seam)∨h≠≢seam
+            ⎕SIGNAL 11
+        :EndIf
+        :If ~∧/(seam≥0)∧(seam<w)∧seam=⌊seam
+            ⎕SIGNAL 11
+        :EndIf
+        :If ∨/1<|(1↓seam)-¯1↓seam
+            ⎕SIGNAL 11
+        :EndIf
+        keep←⍉(⍳w)∘.≠seam
+        R←(h(w-1))⍴(,keep)/,plane
+    ∇
+
+    ∇ R←options Carve plane;count;axis;work;i;chosen;⎕IO
+        ⎕IO←0
+        count axis←options
+        :If (0≠≢⍴count)∨(count<0)∨count≠⌊count
+            ⎕SIGNAL 11
+        :EndIf
+        :If (2≠≢⍴plane)∨0∊⍴plane
+            ⎕SIGNAL 11
+        :EndIf
+        :If ~((⊂axis)∊'vertical' 'horizontal')
+            ⎕SIGNAL 11
+        :EndIf
+        work←plane
+        :If axis≡'horizontal'
+            work←⍉work
+        :EndIf
+        :If count≥1⊃⍴work
+            ⎕SIGNAL 11
+        :EndIf
+        R←⎕NS '' ⋄ R.seams←⍬
+        :For i :In ⍳count
+            chosen←MinimumSeam Energy work
+            R.seams,←⊂chosen.seam
+            work←chosen.seam RemoveSeam work
+        :EndFor
+        :If axis≡'horizontal'
+            work←⍉work
+        :EndIf
+        R.output←work
+    ∇
 :EndNamespace

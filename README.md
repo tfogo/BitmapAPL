@@ -158,6 +158,15 @@ Components use synchronous minimum-label propagation until stable. Each foregrou
 
 The 288 oracle cases include every 2×3 binary mask, diagonal contacts, a winding path, isolated/background seeds, border shapes, and both connectivities. Python breadth-first search checks labels, counts, areas, and fill distances; the browser is checked against every exported Dyalog step. Browser teaching functions retain traces, so use them only for small examples; the APL functions retain only the working arrays.
 
+## Canny and seam carving
+
+```apl
+edges ← (2 1 35 100) ImageOps.Canny plane
+smaller ← (4 'vertical') ImageOps.Carve plane
+```
+
+Canny exposes all stages from Gaussian smoothing to linked edges. Seam carving exposes energy, cumulative costs, predecessor paths, and repeated vertical or horizontal removal. See [the advanced operation contracts](docs/advanced-operations.md) for thresholds, border rules, tie-breaking, complexity, limitations, and the independent oracle checks.
+
 ## Animated explainer
 
 ```sh

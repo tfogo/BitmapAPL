@@ -137,3 +137,67 @@ export function components(a,h,w,connectivity=4) {
   const ids=[...new Set(labels.filter(Boolean))].sort((a,b)=>a-b);
   return {labels,ids,areas:ids.map(id=>labels.filter(v=>v===id).length),count:ids.length,steps};
 }
+export function nonMax(gx,gy,magnitude,h,w) {
+  const direction=Array(h*w).fill(0),thin=Array(h*w).fill(0);
+  const offsets=[[0,1],[1,1],[1,0],[1,-1]];
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+    const i=y*w+x;
+    let d=0;
+    if(Math.abs(gy[i])>0.4142135623730951*Math.abs(gx[i])) {
+      d=2;
+      if(Math.abs(gx[i])>0.4142135623730951*Math.abs(gy[i]))d=gx[i]*gy[i]<0?3:1;
+    }
+    if(magnitude[i]<=1e-10)d=0;
+    direction[i]=45*d;
+    if(y===0||x===0||y===h-1||x===w-1)continue;
+    const [dy,dx]=offsets[d],before=magnitude[(y-dy)*w+x-dx],after=magnitude[(y+dy)*w+x+dx];
+    if(magnitude[i]>=before-1e-10&&magnitude[i]>after+1e-10)thin[i]=magnitude[i];
+  }
+  return {direction,thin};
+}
+export function hysteresis(thin,h,w,low,high,trace=false) {
+  if(!Number.isFinite(low)||!Number.isFinite(high)||low<=0||high<low)throw Error('Expected 0 < low <= high');
+  const weak=thin.map(v=>+(v>=low)),strong=thin.map(v=>+(v>=high));
+  let edges=strong;
+  const steps=trace?[edges]:[];
+  while(true){
+    const next=morphology(edges,h,w,'dilate','square').map((v,i)=>v*weak[i]);
+    if(next.every((v,i)=>v===edges[i]))break;
+    edges=next;if(trace)steps.push(edges);
+  }
+  return {weak,strong,edges,steps};
+}
+export function canny(a,h,w,radius=2,sigma=1,low=40,high=100,trace=false) {
+  const smoothed=blur(a,h,w,radius,sigma,'clamp').output,gradients=sobel(smoothed,h,w,'clamp');
+  const suppressed=nonMax(gradients.gx,gradients.gy,gradients.magnitude,h,w);
+  return {smoothed,...gradients,...suppressed,...hysteresis(suppressed.thin,h,w,low,high,trace)};
+}
+export function energy(a,h,w){return sobel(a,h,w,'clamp').magnitude;}
+export function minimumSeam(a,h,w) {
+  if(!Number.isInteger(h)||!Number.isInteger(w)||h<1||w<1||a.length!==h*w||a.some(v=>!Number.isFinite(v)||v<0))throw Error('Invalid energy plane');
+  const cost=a.slice(),parents=Array(a.length).fill(-1);
+  for(let y=1;y<h;y++)for(let x=0;x<w;x++){
+    let parent=Math.max(0,x-1);
+    for(let p=parent+1;p<=Math.min(w-1,x+1);p++)if(cost[(y-1)*w+p]<cost[(y-1)*w+parent])parent=p;
+    parents[y*w+x]=parent;cost[y*w+x]+=cost[(y-1)*w+parent];
+  }
+  let last=0;
+  for(let x=1;x<w;x++)if(cost[(h-1)*w+x]<cost[(h-1)*w+last])last=x;
+  const total=cost[(h-1)*w+last],seam=Array(h).fill(0);seam[h-1]=last;
+  for(let y=h-1;y>0;y--)seam[y-1]=parents[y*w+seam[y]];
+  return {cost,parents,total,seam};
+}
+export function removeSeam(a,h,w,seam) {
+  if(w<=1||seam.length!==h||seam.some((x,y)=>!Number.isInteger(x)||x<0||x>=w||(y&&Math.abs(x-seam[y-1])>1)))throw Error('Invalid seam');
+  return a.filter((_,i)=>i%w!==seam[Math.floor(i/w)]);
+}
+export function carve(a,h,w,count,axis='vertical') {
+  if(!['vertical','horizontal'].includes(axis)||!Number.isInteger(count)||count<0||count>=(axis==='vertical'?w:h))throw Error('Invalid carve dimensions');
+  let work=axis==='horizontal'?transpose(a,h,w):a.slice(),rows=axis==='horizontal'?w:h,cols=axis==='horizontal'?h:w;
+  const seams=[];
+  for(let i=0;i<count;i++){
+    const chosen=minimumSeam(energy(work,rows,cols),rows,cols);seams.push(chosen.seam);
+    work=removeSeam(work,rows,cols,chosen.seam);cols--;
+  }
+  return {output:axis==='horizontal'?transpose(work,rows,cols):work,seams,h:axis==='horizontal'?cols:rows,w:axis==='horizontal'?rows:cols};
+}
