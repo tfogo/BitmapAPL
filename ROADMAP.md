@@ -93,6 +93,8 @@ Start with a full 3×3 structuring element, then add a cross-shaped mask. Show a
 
 ## Editorial direction
 
+Make learning APL the thread running through each article. Introduce its unusual syntax through visible image operations: lists and assignment, shape and transpose, reduction, then functions and operators. Reuse expressions so the reader sees how a small change produces a new effect.
+
 Use a linear article, inspired by the explanatory pacing of [Mechanical Watch](https://ciechanow.ski/mechanical-watch/) and [Airfoil](https://ciechanow.ski/airfoil/). Write original text and diagrams. Keep sentences short and concrete. Introduce names after the reader has seen the idea. Let each diagram answer the preceding paragraph’s question, with one useful control. Add later algorithms as short follow-up articles instead of expanding a control-heavy dashboard.
 
 ## Shared animation and documentation design

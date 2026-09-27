@@ -2,75 +2,85 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pictures as arrays — Bitmap APL</title>
-<meta name="description" content="An illustrated, interactive walk from pixels to Gaussian blur and edge detection in APL.">
+<title>Reading APL through pictures — Bitmap APL</title>
+<meta name="description" content="Learn to read APL’s unusual symbols through simple animations, from whole-array arithmetic to image blur and edge detection.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23585ac7'/%3E%3Ctext x='5' y='24' fill='white' font-size='25'%3E⍴%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header><a href="./">Bitmap APL</a><span>An illustrated introduction</span></header>
 <main><article>
-<div class="opening"><p class="kicker">ARRAY PROGRAMMING, MADE VISIBLE</p><h1>Pictures as arrays</h1><p class="lede">A picture is an array of numbers. Let’s see what we can do with it.</p></div>
-<p>Imagine a tiny black-and-white picture. Each square has a brightness: zero is black, 255 is white, and everything in between is a shade of gray. Together, these numbers form an array.</p>
+<div class="opening"><p class="kicker">AN ILLUSTRATED INTRODUCTION TO APL</p><h1>Reading APL<br>through pictures</h1><p class="lede">A strange-looking language, a few small expressions, and the pictures they can change.</p></div>
+<p>This is a line of APL:</p>
+<div class="opening-expression"><code id="reading-expression">+/0.25 0.5 0.25×20 60 220</code><p id="reading-note" aria-live="polite">It multiplies three pairs of numbers, then adds the results.</p><button id="read-step">Show the multiplication</button></div>
+<p>There are no brackets around the lists, and <code>+/</code> is doing something that may not look like addition. Yet this line contains the main idea behind an image blur.</p>
+<p>We’ll learn to read it, then build up to expressions that blur a picture and find its edges. Each new symbol will have something visible to do.</p>
+<p>First we need some numbers to work on. In a grayscale picture, each pixel has a brightness from 0 to 255. Move the slider to uncover them.</p>
 <figure><canvas id="pixels" aria-label="A five-row, seven-column grayscale picture gradually separating into labeled numeric cells" role="img"></canvas><div class="control"><label for="reveal">Look inside the picture</label><input id="reveal" type="range" min="0" max="1" step="0.01" value="0"><span class="ends"><span>Picture</span><span>Numbers</span></span></div><figcaption>Drag the slider. The picture and the array contain exactly the same information.</figcaption></figure>
-<p>APL is a language built around arrays. An expression can describe what to do to an entire picture.</p>
-<p>We’ll build up to a blur, then turn the same idea into an edge detector. The symbols will appear a few at a time. You don’t need to know APL to follow along.</p>
+<p>These rows of numbers form an <em>array</em>. Arrays are APL’s usual working material. That is why pictures make a good way to learn the language.</p>
 
-<section aria-labelledby="shape-title"><h2 id="shape-title">Giving numbers a shape</h2>
+<section aria-labelledby="shape-title"><h2 id="shape-title">A list, an arrow, and a shape</h2>
+<p>In APL, spaces can make a list. The arrow <code>←</code> gives a value a name:</p>
+<pre><code>numbers ← 20 60 220</code></pre>
+<p>That is a three-element array. To make a picture, we need rows as well as columns.</p>
 <p>Our picture has five rows and seven columns. In APL, <code>⍴</code> asks for that shape. Put a shape on its left, and the same symbol arranges a list of values into an array.</p>
 <pre><code>⍴picture             ⍝ 5 7
 picture ← 5 7⍴values  ⍝ arrange 35 values into rows</code></pre>
 <p>The little <code>⍝</code> starts a comment. It is a note for us, not part of the calculation.</p>
-<p>Once the values have a shape, arithmetic keeps that shape. For example, subtracting the picture from 255 exchanges light and dark. Every value changes at once.</p>
+<p>The familiar minus sign works on arrays too. Subtract the picture from 255, and light and dark exchange places. We don’t need to write a separate subtraction for every pixel.</p>
 <figure><canvas id="invert" aria-label="Original grayscale array and its inverted values" role="img"></canvas><div class="button-row"><button id="invert-toggle" aria-pressed="false">Invert the picture</button></div><figcaption id="invert-caption">A pixel with value 40 becomes 215. Click to watch every value change.</figcaption></figure>
 <pre><code>negative ← 255-picture</code></pre>
 <p>This is called <em>scalar extension</em>: the single number 255 participates in the subtraction at every position. The result is another array of the same shape.</p>
 </section>
 
-<section aria-labelledby="axes-title"><h2 id="axes-title">Moving the values instead</h2>
-<p>We can also change where the values live. A transpose exchanges rows and columns: the third value in the first row becomes the first value in the third row.</p>
+<section aria-labelledby="axes-title"><h2 id="axes-title"><code>⍉</code> exchanges the axes</h2>
+<p>Some APL functions have symbols of their own. <code>⍉</code> means <em>transpose</em>. It exchanges rows and columns: the third value in the first row becomes the first value in the third row.</p>
 <figure><canvas id="transpose" aria-label="Fifteen numbered cells move from a three-by-five array to a five-by-three array" role="img"></canvas><div class="control"><label for="turn">Exchange rows and columns</label><input id="turn" type="range" min="0" max="1" step="0.01" value="0"><span class="ends"><span>3 × 5</span><span>5 × 3</span></span></div><figcaption>Follow any number. Its value stays the same while its coordinates swap.</figcaption></figure>
 <pre><code>transposed ← ⍉picture</code></pre>
 <p>That small operation will be useful later. If we know how to process rows, transposing lets us use the same operation on columns.</p>
 </section>
 
-<section aria-labelledby="neighbors-title"><h2 id="neighbors-title">A pixel borrows from its neighbors</h2>
-<p>So far each result has depended on only one input value. A blur needs a different idea: let a pixel borrow some brightness from the pixels around it.</p>
+<section aria-labelledby="neighbors-title"><h2 id="neighbors-title">Reading <code>+/weights×neighbors</code></h2>
+<p>Now we can return to the line we started with. It combines several values into one—the operation we need to blur a pixel using its neighbors.</p>
 <p>Let’s look at just one row. For each position, take a quarter of the value on the left, half of the value in the middle, and a quarter of the value on the right. Add the three contributions.</p>
 <figure><canvas id="window" aria-label="A three-value window slides over a row and shows each weighted contribution and its sum" role="img"></canvas><div class="control with-play"><button class="play" data-play="position" aria-label="Play moving neighborhood">Play</button><div><label for="position">Move the neighborhood</label><input id="position" type="range" min="0" max="8" step="0.01" value="3"><span class="ends"><span>Left edge</span><span>Right edge</span></span></div></div><figcaption id="window-caption" aria-live="polite"></figcaption></figure>
 <p>The three weights add up to one. That matters: if all three pixels have brightness 100, their weighted sum is still 100. A blur should not make a uniform patch brighter or darker.</p>
 <pre><code>weights ← 0.25 0.5 0.25
 +/weights×neighbors</code></pre>
-<p>Read the second line from right to left: multiply the weights by the neighboring values, then add the products. The <code>/</code> turns addition into a <em>reduction</em>—many values become one.</p>
+<p>APL functions have equal precedence. Without parentheses, they work from right to left. Here, <code>weights×neighbors</code> multiplies matching pairs first. Then <code>+/</code> adds the products.</p>
+<p>The slash is an <em>operator</em>: it changes how a function is applied. <code>+</code> adds two arguments; <code>+/</code> adds along a list. This is called <em>reduction</em>.</p>
 <p>At the ends of the row, a neighbor is missing. Here we repeat the edge value. This rule is called <em>clamping</em>. Filling the missing positions with zeros would darken the ends instead.</p>
 </section>
 
-<section aria-labelledby="gaussian-title"><h2 id="gaussian-title">Choosing the weights</h2>
-<p>Our three weights made nearby pixels matter more than distant ones. A Gaussian does the same thing with a smooth, bell-shaped distribution. Sample it at integer pixel offsets, then divide every sample by their sum.</p>
+<section aria-labelledby="gaussian-title"><h2 id="gaussian-title">Building an array with <code>⍳</code></h2>
+<p>We typed our first three weights by hand. APL can also calculate a whole list of weights from a list of positions. Let’s use a Gaussian: a bell-shaped distribution that gives more weight to nearby pixels.</p>
 <figure><canvas id="gaussian" aria-label="Nine Gaussian weights shown as bars above offsets minus four through four" role="img"></canvas><div class="control"><label for="spread">Spread of the Gaussian · σ = <output id="spread-value">1.0</output> pixels</label><input id="spread" type="range" min="0.4" max="2.5" step="0.01" value="1"><span class="ends"><span>Mostly the center</span><span>More of the neighbors</span></span></div><figcaption>These nine weights always sum to one. Their radius stays fixed at four pixels.</figcaption></figure>
 <p>Increasing sigma spreads the influence over more neighbors. The radius is a separate choice: it says how far we look. For this example we keep the radius fixed so you can see sigma’s effect on its own.</p>
 <pre><code>⎕IO ← 0                 ⍝ start indexing at zero
 x ← (⍳9)-4              ⍝ offsets: ¯4 ¯3 … 3 4
 k ← *¯0.5×(x÷sigma)*2
 k ← k÷+/k               ⍝ make the weights sum to one</code></pre>
-<p>Here <code>⍳9</code> generates nine consecutive indices. APL’s <code>*</code> means exponential when used on the right-hand expression alone, and power when it has arguments on both sides. The last line normalizes the weights.</p>
+<p><code>⍳9</code> generates the integers 0 through 8 with this index setting. Subtracting four centers them on zero. APL uses the high minus <code>¯</code> to write negative numbers.</p>
+<p>As with <code>⍴</code>, the meaning of <code>*</code> depends on its arguments. <code>x*2</code> squares x; <code>*x</code> computes e to the power x. The final line divides every weight by their sum. There is our <code>+/</code> again.</p>
 </section>
 
-<section aria-labelledby="passes-title"><h2 id="passes-title">From a row to a picture</h2>
+<section aria-labelledby="passes-title"><h2 id="passes-title">Functions that work on functions</h2>
 <p>A picture has two spatial dimensions. We could give every output pixel a whole square of neighbors. For a Gaussian, there is a useful shortcut: blur across the rows, then blur down the columns. The result is the same as applying the corresponding square Gaussian kernel.</p>
 <figure><canvas id="passes" aria-label="A bright impulse first spreads into a horizontal line, then into a two-dimensional Gaussian spot" role="img"></canvas><div class="control with-play"><button class="play" data-play="pass" aria-label="Play two-pass Gaussian blur">Play</button><div><label for="pass">Spread one bright pixel</label><input id="pass" type="range" min="0" max="2" step="0.01" value="0"><span class="ends"><span>Original</span><span>Across rows</span><span>Down columns</span></span></div></div><figcaption id="passes-caption">One bright pixel makes the shape of the filter visible.</figcaption></figure>
-<p>APL has an operator, <code>⌺</code>, called <em>Stencil</em>, for applying a function to successive neighborhoods. Our row function uses it to calculate the weighted sum at each position. Rank, written <code>⍤</code>, tells APL which size of cell that function should handle.</p>
+<p>We’ve seen <code>/</code> turn addition into a sum. APL has other operators that tell a function where to work.</p>
+<p><code>⌺</code>, called <em>Stencil</em>, applies a function to successive neighborhoods. <code>⍤</code>, called <em>Rank</em>, applies a function to cells of a chosen dimension—such as the rows inside a matrix.</p>
+<p>We can name a function using braces. Inside them, <code>⍵</code> stands for the right argument. Here we wrap the library’s row filter in a function called <code>Row</code>:</p>
 <pre><code>⍝ Row handles padding, weighted windows, and cropping
 Row ← {(k 'clamp') ImageOps.FilterRow ⍵}
-horizontal ← Row⍤1⊢picture
-blurred ← ⍉Row⍤1⊢⍉horizontal</code></pre>
-<p>The <code>1</code> selects vectors—the rows inside the matrix. In the last line, transpose brings the columns into those positions; transpose afterward puts the picture back in its original orientation.</p>
+horizontal ← (Row⍤1) picture
+blurred ← ⍉(Row⍤1)⍉horizontal</code></pre>
+<p>The <code>1</code> selects one-dimensional cells: rows. Read the last line from the right. Transpose, filter the new rows, then transpose back. The same row function has now handled both directions.</p>
 <p>A nine-by-nine filter needs 81 weighted contributions per pixel. Two nine-value passes need only 18. We get the same result with less arithmetic.</p>
 <aside>The animation blends between the three computed arrays to reveal their shapes. The actual algorithm makes two discrete passes. Brightness is amplified here so the faint values remain visible; the numbers used by the library are unchanged.</aside>
 </section>
 
-<section aria-labelledby="edges-title"><h2 id="edges-title">What if we subtract?</h2>
-<p>A blur measures the brightness nearby. To find an edge, we want to measure how much that brightness <em>changes</em>. We can reuse the neighborhood, but give one side negative weights.</p>
+<section aria-labelledby="edges-title"><h2 id="edges-title">The same expression finds an edge</h2>
+<p>Keep <code>+/weights×neighbors</code>, but change the weights to <code>¯1 0 1</code>. Now the expression subtracts the left neighbor from the right. It measures a change in brightness.</p>
 <p>Try moving across the boundary below. In a flat region, the two sides cancel. Where the picture changes from dark to light, their difference is positive. Reverse the transition and the sign would reverse too.</p>
 <figure><canvas id="edge" aria-label="A difference filter slides across a brightness step and produces a peak at its boundary" role="img"></canvas><div class="control with-play"><button class="play" data-play="edge-position" aria-label="Play edge detector">Play</button><div><label for="edge-position">Move across the edge</label><input id="edge-position" type="range" min="0" max="8" step="0.01" value="4"><span class="ends"><span>Dark region</span><span>Light region</span></span></div></div><figcaption id="edge-caption" aria-live="polite"></figcaption></figure>
 <pre><code>difference ← +/¯1 0 1×neighbors</code></pre>
@@ -79,8 +89,8 @@ blurred ← ⍉Row⍤1⊢⍉horizontal</code></pre>
 ky ← ⍉kx
 magnitude ← ((gx*2)+gy*2)*0.5</code></pre>
 <figure><canvas id="edge-image" aria-label="A grayscale test shape and its computed Sobel edge magnitude with an adjustable reveal" role="img"></canvas><div class="control"><label for="edge-reveal">Reveal the edges</label><input id="edge-reveal" type="range" min="0" max="1" step="0.01" value="0.5"><span class="ends"><span>Picture</span><span>Edge strength</span></span></div><figcaption>The Sobel result is scaled for display. Move the dividing line to compare the same locations.</figcaption></figure>
-<p>We started with arithmetic on individual positions. Then we changed the shape, described a neighborhood, and applied a function across rows and columns. Those same ideas let a short piece of APL express an image-processing algorithm.</p>
-<p>A picture, a row of weights, and a sum: those are the pieces. APL gives us a way to put them together.</p>
+<p>The symbols should look a little less strange now. <code>⍴</code> gives values a shape. <code>⍉</code> exchanges axes. <code>+/</code> combines values. <code>⍤</code> tells a function which cells to work on.</p>
+<p>Together, they let us describe operations on a whole picture. Changing just the weights took us from softening an image to finding its outlines.</p>
 </section>
 <footer><h2>About this walkthrough</h2><p>The diagrams use a JavaScript model checked against results from this project’s Dyalog APL implementation. They do not execute APL in your browser. Use the sliders with a mouse, touch, or arrow keys; animations run only when you press Play, and pause when you scroll them out of view.</p><p>This article’s explanatory format is inspired by Bartosz Ciechanowski’s <a href="https://ciechanow.ski/mechanical-watch/">Mechanical Watch</a> and <a href="https://ciechanow.ski/airfoil/">Airfoil</a>. The text and diagrams here are original.</p><p><a href="https://docs.dyalog.com/20.0/language-reference-guide/primitive-operators/stencil/">Dyalog’s Stencil reference</a> · <button id="pause-all" class="text-button">Pause all animations</button></p></footer>
 </article></main><script type="module" src="app.mjs"></script>

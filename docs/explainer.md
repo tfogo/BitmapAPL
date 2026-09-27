@@ -1,6 +1,6 @@
 # Walkthrough development
 
-The frontend is a continuous article: **Pictures as arrays**. It replaces the earlier tabbed explorer following the user's request for a simple, illustrated walkthrough and clear prose.
+The frontend is a continuous article: **Reading APL through pictures**. It teaches APL’s unfamiliar syntax through small expressions and visible changes to images. Keep the prose simple and the diagrams close to the ideas they explain.
 
 Start it from the repository root:
 
@@ -12,15 +12,15 @@ Visit http://127.0.0.1:8765. No npm installation, build, or live APL service is 
 
 ## Article sequence
 
-1. Reveal the numbers inside a picture.
-2. Invert all its values with one expression.
-3. Move numbered cells through a transpose.
-4. Slide a weighted neighborhood along a row and show its arithmetic.
-5. Adjust sigma and see normalized Gaussian weights change.
-6. Spread an impulse across rows, then down columns.
-7. Subtract neighbors to find a change; reveal Sobel edges on a larger picture.
+1. Unpack a short expression: multiply matching values, then reduce them to a sum.
+2. Introduce lists, assignment, shape, and whole-array subtraction using pixel values.
+3. Follow numbered cells through `⍉` (transpose).
+4. Read `+/weights×neighbors` from right to left while a neighborhood moves along a row.
+5. Generate offsets with `⍳`, then calculate and normalize Gaussian weights.
+6. Introduce functions, `⍵`, Stencil, and Rank; reuse a row filter on columns.
+7. Change the weights in the same expression to find edges.
 
-Keep each paragraph short and concrete. Show an idea before naming it. Each figure has one focused control, placed immediately after the prose that introduces it. Code follows the visual explanation. New algorithms should become follow-up articles rather than additional controls on this page.
+Each section should teach something about reading or composing APL. Images give the symbols a visible purpose. Keep paragraphs short and concrete; explain unfamiliar marks where they first appear. Each figure has one focused control. New algorithms should become follow-up articles rather than additional controls on this page.
 
 The explanatory format draws on Bartosz Ciechanowski's Mechanical Watch and Airfoil articles, linked in the footer. The prose and diagrams are original.
 

@@ -31,3 +31,14 @@ const observer=new IntersectionObserver(entries=>{for(const entry of entries)if(
 document.fonts.ready.then(()=>diagrams.forEach(render=>render()));
 
 for(const id of ['position','edge-position'])$(id).addEventListener('keydown',event=>{if(event.key==='ArrowLeft'||event.key==='ArrowRight'){event.preventDefault();const control=$(id);control.value=Math.max(0,Math.min(8,Math.round(+control.value)+(event.key==='ArrowRight'?1:-1)));control.dispatchEvent(new Event('input'));}});
+let readingStep=0;
+$('read-step').addEventListener('click',()=>{
+  readingStep=(readingStep+1)%3;
+  const stages=[
+    ['+/0.25 0.5 0.25×20 60 220','It multiplies three pairs of numbers, then adds the results.','Show the multiplication'],
+    ['+/5 30 55','0.25 × 20 = 5, 0.5 × 60 = 30, and 0.25 × 220 = 55.','Add the three results'],
+    ['90','The slash makes + add along the list: 5 + 30 + 55 = 90.','Read it again']
+  ];
+  const [expression,note,button]=stages[readingStep];
+  $('reading-expression').textContent=expression;$('reading-note').textContent=note;$('read-step').textContent=button;
+});
