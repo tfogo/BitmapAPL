@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Choosing a neighbor — Bitmap APL</title>
+<meta name="description" content="Learn APL sorting, indexing, and reductions through animated median filters and binary shapes.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header><a href="./">Bitmap APL</a><span>An illustrated introduction · 2</span></header>
+<main><article>
+<div class="opening"><p class="kicker">SORTING, SELECTING, AND SHAPES</p><h1>Choosing a neighbor</h1><p class="lede">Sometimes the best way to fix a pixel is to borrow one.</p></div>
+<p>In <a href="./">the first article</a>, we multiplied neighboring pixels by weights and added the results. APL can also help us choose a value from those neighbors.</p>
+<p>Look at the bright pixel below. Most values nearby are around 40. This one is 255. An average would spread some of that brightness into the surrounding pixels. What if we chose the middle value instead?</p>
+<figure><canvas id="sorting" role="img" aria-label="Nine numbered cells move from a three-by-three patch into a list, then sort by brightness. The middle value is 40."></canvas><div class="control"><label for="sort-step">Arrange the nine values</label><input id="sort-step" type="range" min="0" max="2" step="0.01" value="0"><span class="ends"><span>Patch</span><span>List</span><span>Sorted</span></span></div><figcaption id="sort-caption" aria-live="polite">The bright center is surrounded by much darker pixels.</figcaption></figure>
+<section><h2>A comma makes a list</h2>
+<p>We have nine numbers in three rows. The comma <code>,</code>, called <em>ravel</em>, puts them in one list, reading across each row in turn.</p>
+<pre><code>patch ← 3 3⍴40 40 45 40 255 45 35 40 45
+v ← ,patch
+⍝ 40 40 45 40 255 45 35 40 45</code></pre>
+<p>The values have not changed. Only their arrangement has.</p>
+<h2>A symbol that gives us an order</h2>
+<p><code>⍋</code> is called <em>grade up</em>. It tells us the positions that would put a list in ascending order. It does not return the sorted values itself.</p>
+<pre><code>⎕IO ← 0                 ⍝ count positions from zero
+order ← ⍋v
+⍝ 6 0 1 3 7 2 5 8 4
+sorted ← v[order]
+⍝ 35 40 40 40 40 45 45 45 255</code></pre>
+<p>The smallest value, 35, was at position 6. The largest, 255, was at position 4. Square brackets select values at those positions. Passing a whole list of positions selects a whole list of values.</p>
+<p>With nine sorted values, the fifth one is the middle. Because we count from zero, its position is 4.</p>
+<pre><code>sorted[4]               ⍝ 40</code></pre>
+<p>This is the <em>median</em>. The bright outlier has no special influence just because it is large. It ends up at the far end of the list.</p>
+<h2>One choice at every pixel</h2>
+<p>We can put those steps in a function. The diamond <code>⋄</code> separates statements. As before, <code>⍵</code> is the function’s argument.</p>
+<pre><code>Middle ← {v←,⍵ ⋄ sorted←v[⍋v] ⋄ sorted[4]}</code></pre>
+<p>Stencil, <code>⌺</code>, supplies a neighborhood to that function at each position. This expression takes the median of each 3×3 window:</p>
+<pre><code>Middle⌺3 3⊢picture</code></pre>
+<p><code>⊢</code> passes the picture on as the argument. At a border, this plain Stencil expression supplies zeros for missing pixels. The library pads the image first, so we can choose a different rule:</p>
+<pre><code>clean ← (1 'clamp') ImageOps.Median picture</code></pre>
+<p>The radius of 1 means one pixel in every direction: a 3×3 window. Here, clamping repeats the nearest edge value.</p>
+<figure><canvas id="noise" role="img" aria-label="The same noisy shape shown unfiltered, after a Gaussian blur, and after a three-by-three median filter."></canvas><div class="control"><label for="noise-amount">Noise level · <output id="noise-value">12%</output></label><input id="noise-amount" type="range" min="0" max="30" step="1" value="12"><span class="ends"><span>None</span><span>More specks</span></span></div><figcaption>All three views start from the same noise pattern. Gaussian: radius 1, σ = 1. Median: 3×3. Both use clamped borders.</figcaption></figure>
+<p>This is often called <em>salt-and-pepper noise</em>. The median can remove isolated specks while keeping a sharp boundary. The Gaussian softens both. Increase the noise and the median starts to fail too: it only knows what is in its small window.</p>
+<p>It can also erase a real thin line or a small bright object. Choosing the middle value is useful when most neighbors are trustworthy.</p>
+<aside>Unlike the Gaussian, a square median filter cannot generally be split into a row pass and a column pass. Sorting chooses a value; it is not a weighted sum. The library sorts the full square at each pixel.</aside>
+</section>
+<section><h2>Choose the largest. Or the smallest.</h2>
+<p>Let’s work with a simpler picture: ones for the shape, zeros for the background. The ceiling-shaped symbol <code>⌈</code> takes the larger of two values. Add the reduction slash and <code>⌈/</code> takes the largest value in a list.</p>
+<pre><code>⌈/0 0 1 0 0             ⍝ 1
+⌊/0 0 1 0 0             ⍝ 0</code></pre>
+<p><code>⌊/</code> takes the smallest. On zeros and ones, the largest is 1 if <em>any</em> selected neighbor is 1. The smallest is 1 only if <em>all</em> of them are 1.</p>
+<p>Taking the largest grows a shape. This is <em>dilation</em>. Taking the smallest shrinks it. This is <em>erosion</em>. Purple cells are 1; pale cells are 0. Move the window and watch one output pixel being decided.</p>
+<figure><canvas id="morph" role="img" aria-label="A neighborhood scans a binary shape. Its selected zeros and ones determine an output pixel by maximum or minimum."></canvas><div class="button-row" role="group" aria-label="Neighborhood rule"><button id="dilate" aria-pressed="true">Largest · dilation</button> <button id="erode" aria-pressed="false">Smallest · erosion</button></div><div class="control"><label for="morph-position">Move the window</label><input id="morph-position" type="range" min="0" max="48" step="1" value="24"><span class="ends"><span>First pixel</span><span>Last pixel</span></span></div><div class="button-row"><button id="footprint" aria-pressed="false">Use a cross-shaped window</button></div><figcaption id="morph-caption" aria-live="polite"></figcaption></figure>
+<p>A square window includes the diagonal neighbors. A cross leaves them out. This selection is called a <em>structuring element</em>: its shape affects which details survive.</p>
+<pre><code>square ← 3 3⍴1
+cross ← 3 3⍴0 1 0 1 1 1 0 1 0</code></pre>
+<p>We can use a Boolean list to select values too. With a list on its left, <code>/</code> keeps values marked 1 and drops those marked 0. In this use, it is called <em>compress</em>.</p>
+<pre><code>mask ← ,cross
+selected ← mask/,patch
+⌈/selected              ⍝ largest of the five values</code></pre>
+<p>The slash has two roles here. A function on its left, as in <code>⌈/</code>, makes a reduction. A Boolean list on its left makes a selection.</p>
+<aside>Outside this finite image, dilation uses 0 and erosion uses 1. These values do not change the maximum or minimum. The diagram marks missing neighbors with a dashed outline. Other border rules can change the result.</aside>
+</section>
+<section><h2>Put two functions together</h2>
+<p>Erosion removes an isolated speck. Dilation then grows the surviving shape back. The pair is called an <em>opening</em>. It can also remove narrow parts of the shape.</p>
+<p>Reverse the order and we get a <em>closing</em>: grow first, then shrink. It can fill small holes and join nearby parts.</p>
+<figure><canvas id="composition" role="img" aria-label="A binary shape with a hole and an isolated speck changes through the two stages of opening or closing."></canvas><div class="button-row"><button id="composition-kind" aria-pressed="false">Show closing instead</button></div><div class="control"><label for="composition-step">Follow the two stages</label><input id="composition-step" type="range" min="0" max="2" step="0.01" value="0"><span class="ends"><span>Original</span><span id="stage-one">Erode</span><span id="stage-two">Dilate</span></span></div><figcaption id="composition-caption" aria-live="polite"></figcaption></figure>
+<pre><code>Erode ← {('erode' 'square') ImageOps.Morphology ⍵}
+Dilate ← {('dilate' 'square') ImageOps.Morphology ⍵}
+opened ← Dilate Erode shape
+closed ← Erode Dilate shape</code></pre>
+<p>Read from the right again: <code>Erode</code> handles the shape, then <code>Dilate</code> handles its result. APL also has a composition operator, <code>∘</code>, so we can give the pair a name:</p>
+<pre><code>Open ← Dilate∘Erode
+opened ← Open shape</code></pre>
+<p>With these footprints and border rules, applying an opening twice gives the same result as applying it once. Closing has the same property. But neither operation undoes the other: details can be lost.</p>
+<p>We started by sorting nine numbers. Then we changed the choice: middle, largest, smallest. APL lets us keep the neighborhood and change what we ask of it.</p>
+</section>
+<footer><h2>About this walkthrough</h2><p>The browser model is checked against executed Dyalog results: 81 median-filter cases and 552 binary morphology cases. It does not run APL in the browser. Sliders control each animation directly; nothing plays automatically. The sorting diagram moves values between arrangements. The two-stage diagram blends discrete results to show what changes.</p><p>The noise pattern is seeded and repeatable. The noise level sets each pixel’s chance of being replaced by black or white. Image values stay numeric until display. These small examples are grayscale; the morphology examples require zeros and ones.</p><p><a href="./">← Reading APL through pictures</a></p></footer>
+</article></main><script type="module" src="neighborhoods.mjs"></script>
+</body></html>

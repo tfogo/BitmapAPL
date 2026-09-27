@@ -2,7 +2,7 @@
 
 Build a reliable Dyalog image-processing library and an animated explainer that makes its array operations visible. The first release should take a reader from pixels to Gaussian blur and Sobel edges; later releases introduce nonlinear filters, statistics, regions, and dynamic programming.
 
-Completed items are checked below. The Gaussian core and BMP adapter are implemented and tested; Sobel and sharpening are also implemented. The frontend is a linear illustrated walkthrough; later operations remain planned. See [the source review](docs/library-review.md) for the initial findings and [local setup](docs/development.md) for runtime instructions.
+Completed items are checked below. The Gaussian core and BMP adapter are implemented and tested; Sobel and sharpening are also implemented. The frontend is a linear illustrated walkthrough; median filtering and binary morphology now have a second article. Later operations remain planned. See [the source review](docs/library-review.md) for the initial findings and [local setup](docs/development.md) for runtime instructions.
 
 ## 0. Establish a runnable baseline
 
@@ -55,6 +55,12 @@ Completed items are checked below. The Gaussian core and BMP adapter are impleme
 | Median filter | Ravel `,`, grade `⍋`, indexing, Stencil | Sort neighborhood values and highlight the median; compare removal of seeded salt-and-pepper noise with Gaussian smoothing | Compare with hand-sorted windows, including edges |
 | Dilation / erosion | Boolean arrays, maximum/minimum reductions `⌈/` and `⌊/` | Move a structuring element and show which neighbors decide the output | Known small shapes and explicitly defined exterior values |
 | Opening / closing | Function composition | Show erosion→dilation or dilation→erosion as separate stages | Known specks/holes and idempotence under the selected boundary convention |
+
+- [x] Add a square median filter with zero, clamp, and reflect boundaries.
+- [x] Add dilation, erosion, opening, and closing with square/cross footprints and explicit neutral exterior values.
+- [x] Verify 81 median and 552 morphology cases in Dyalog against independent Python oracles; check opening/closing idempotence.
+- [x] Add a linked second article, **Choosing a neighbor**, with sorting, seeded-noise comparison, moving square/cross neighborhoods, and opening/closing stages.
+- [x] Check the browser implementations against exported Dyalog results.
 
 Start with a full 3×3 structuring element, then add a cross-shaped mask. Show a nonlinear reducer reusing the neighborhood machinery rather than describing every filter as convolution.
 

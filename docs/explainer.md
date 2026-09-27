@@ -42,3 +42,16 @@ The Dyalog suite is checked against an independent Python oracle before exportin
 Browser checks cover the article render, numeric reveal, neighborhood captions, playback advancement, global pause, and a 390px layout without horizontal overflow. Static canvas descriptions and captions explain the diagrams in text; this is not a comprehensive accessibility audit.
 
 APL385 is public-domain font artwork by Adrian Smith; attribution is in `web/fonts/NOTICE.md`.
+
+## Second article: Choosing a neighbor
+
+`web/neighborhoods.html` continues the introduction with ravel, grade, indexing, compress, maximum/minimum reductions, and function composition. Its diagrams are controlled directly by sliders:
+
+- Nine values move from a patch to a list, then to sorted positions. The highlighted median is an actual member of the neighborhood.
+- A deterministic salt-and-pepper pattern feeds both a Gaussian and a median filter. The noise slider retains the seed, so comparisons use the same input.
+- A square or cross scans a binary shape. Missing neighbors are outlined with dashes; dilation uses exterior zero and erosion uses exterior one.
+- Opening and closing reveal two discrete stages, with a visual blend between them. They use the same footprint and boundary convention as the library.
+
+The two articles share typography and the numerical model. The second page uses `neighborhoods.mjs` for its diagrams. Exported fixtures now include 81 median cases and 552 morphology cases in addition to the original 96 numerical cases. The full numerical checks remain the commands above.
+
+Verified in the browser: the grade order and middle value, noise control, erosion with a cross at an image border, both composition endpoints, and a 390px layout with no horizontal overflow. The displayed grade, Stencil, and composition examples also execute successfully in Dyalog.

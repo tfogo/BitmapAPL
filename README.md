@@ -111,6 +111,22 @@ filtered←((3 3⍴0 1 0 1 ¯4 1 0 1 0) 'clamp') ImageOps.Correlate plane
 
 `python3 tests/run.py --export` regenerates `web/fixtures/apl-reference.json` from the actual Dyalog results after all numerical and BMP checks pass. It includes 72 blur cases and 24 Sobel/sharpening cases for browser parity checks.
 
+## Median filters and binary morphology
+
+```apl
+clean ← (1 'clamp') ImageOps.Median plane
+larger ← ('dilate' 'square') ImageOps.Morphology mask
+smaller ← ('erode' 'cross') ImageOps.Morphology mask
+opened ← ('open' 'square') ImageOps.Morphology mask
+closed ← ('close' 'square') ImageOps.Morphology mask
+```
+
+`Median` accepts a nonempty numeric matrix and `(radius boundary)`. Its full square window has side `1+2×radius`; radius must be a nonnegative integer. It supports the same three boundary modes as blur and preserves fractional/signed values. Radius zero returns the input. Sorting each window costs O(HW K log K), where K is the number of samples. It is a teaching implementation, not an optimized running median.
+
+`Morphology` accepts a nonempty matrix of zeros and ones. The footprint is either a full 3×3 `square` or the five-cell `cross`, including its center. Dilation takes a neighborhood maximum; erosion takes its minimum. The exterior is neutral: zero for dilation and one for erosion. Each stage retains the original dimensions. Opening is erosion followed by dilation; closing reverses that order. With these symmetric footprints and boundary rules, opening and closing are idempotent. They can remove thin features or join nearby shapes.
+
+The suite compares 81 median and 552 morphology cases against independent Python oracles, including every 2×3 binary image, singleton dimensions, boundary handling, and opening/closing idempotence. Exported Dyalog results also verify the browser model.
+
 ## Animated explainer
 
 ```sh
@@ -127,3 +143,5 @@ node --test tests/browser-model.test.mjs
 ```
 
 See [explainer development notes](docs/explainer.md) for the UI checks and remaining work.
+
+The second article, [Choosing a neighbor](http://127.0.0.1:8765/neighborhoods.html), introduces ravel, grade, indexing, Boolean selection, maximum/minimum reductions, and composition through median filtering and binary shapes.
