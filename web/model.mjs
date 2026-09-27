@@ -97,3 +97,43 @@ export function equalize(a, h, w) {
   const mapping = cumulative.map((n,i) => first === a.length ? i : Math.floor(.5+255*Math.max(0,n-first)/(a.length-first)));
   return {histogram, cumulative, mapping, output:a.map(v => mapping[v])};
 }
+
+function checkMask(a,h,w,connectivity) {
+  if (![4,8].includes(connectivity) || !Number.isInteger(h) || !Number.isInteger(w) ||
+      h<1 || w<1 || a.length!==h*w || a.some(v=>v!==0&&v!==1)) throw Error('Expected binary plane and connectivity 4 or 8');
+}
+export function floodFill(a,h,w,seed,connectivity=4) {
+  checkMask(a,h,w,connectivity);
+  if (!Array.isArray(seed)||seed.length!==2||seed.some(v=>!Number.isInteger(v))||seed[0]<0||seed[0]>=h||seed[1]<0||seed[1]>=w) throw Error('Invalid zero-based seed');
+  let state=Array(a.length).fill(0);state[seed[0]*w+seed[1]]=a[seed[0]*w+seed[1]];
+  const steps=[state];
+  while(true){
+    const next=morphology(state,h,w,'dilate',connectivity===4?'cross':'square').map((v,i)=>v*a[i]);
+    if(next.every((v,i)=>v===state[i]))break;
+    steps.push(next);state=next;
+  }
+  return {output:state,steps};
+}
+export function labelStep(labels,h,w,connectivity=4) {
+  return labels.map((v,i)=>{
+    if(!v)return 0;
+    let best=v;
+    for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+      if(connectivity===4&&dx&&dy)continue;
+      const y=Math.floor(i/w)+dy,x=i%w+dx;
+      if(y>=0&&x>=0&&y<h&&x<w&&labels[y*w+x]>0)best=Math.min(best,labels[y*w+x]);
+    }
+    return best;
+  });
+}
+export function components(a,h,w,connectivity=4) {
+  checkMask(a,h,w,connectivity);
+  let labels=a.map((v,i)=>v*(i+1));const steps=[labels];
+  while(true){
+    const next=labelStep(labels,h,w,connectivity);
+    if(next.every((v,i)=>v===labels[i]))break;
+    labels=next;steps.push(labels);
+  }
+  const ids=[...new Set(labels.filter(Boolean))].sort((a,b)=>a-b);
+  return {labels,ids,areas:ids.map(id=>labels.filter(v=>v===id).length),count:ids.length,steps};
+}

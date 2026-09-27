@@ -11,7 +11,7 @@
         :EndTrap
     ∇
 
-    ∇ Run folder;spec;case;plane;actual;kernel;mode;row;expected;bm;other;before;name;path;image;result;⎕IO
+    ∇ Run folder;spec;case;plane;actual;kernel;mode;row;expected;bm;other;before;name;path;image;result;state;next;traces;footprint;⎕IO
         ⎕IO←0
         spec←⎕JSON⊃⎕NGET (folder,'/oracle.json') 0
         :For case :In spec.cases
@@ -102,6 +102,62 @@
         {}'constant equalization and caller origin' Assert (2 3⍴73)≡result.output
         ⎕IO←0
         ⎕←'PASS: ',(⍕≢spec.equalizations),' equalization cases; counts, mapping, constants and validation'
+        :For case :In spec.regions
+            plane←case.shape⍴case.pixels
+            result←case.connectivity #.ImageOps.Components plane
+            {}'component labels BFS oracle' Assert case.labels≡,result.labels
+            {}'component IDs BFS oracle' Assert case.ids≡result.ids
+            {}'component areas BFS oracle' Assert case.areas≡result.areas
+            {}'component count BFS oracle' Assert case.count=result.count
+            {}'foreground area conserved' Assert (+/case.pixels)=+/result.areas
+            actual←(case.connectivity case.seed) #.ImageOps.FloodFill plane
+            {}'flood fill BFS oracle' Assert case.fill≡,actual
+            {}'fill shape' Assert case.shape≡⍴actual
+            case.aplFill←,actual
+            case.aplLabels←,result.labels
+            case.aplIds←result.ids
+            case.aplAreas←result.areas
+            case.aplCount←result.count
+            state←case.shape⍴0
+            state[⊂case.seed]←plane[⊂case.seed]
+            traces←,⊂,state
+            footprint←#.ImageOps.ConnectivityFootprint case.connectivity
+            :Repeat
+                next←plane∧('dilate' footprint) #.ImageOps.Morphology state
+                :If next≡state
+                    :Leave
+                :EndIf
+                traces,←⊂,next
+                state←next
+            :EndRepeat
+            {}'flood trace BFS distances' Assert case.fillSteps≡traces
+            case.aplFillSteps←traces
+            state←plane×case.shape⍴1+⍳≢,plane
+            traces←,⊂,state
+            :Repeat
+                next←case.connectivity #.ImageOps.LabelStep state
+                :If next≡state
+                    :Leave
+                :EndIf
+                {}'positive labels only decrease' Assert ∧/,next≤state
+                traces,←⊂,next
+                state←next
+            :EndRepeat
+            {}'label trace reaches components' Assert state≡result.labels
+            case.aplLabelSteps←traces
+        :EndFor
+        {}'invalid connectivity rejected' Assert Fails '6 #.ImageOps.Components 2 2⍴1'
+        {}'nonbinary region rejected' Assert Fails '4 #.ImageOps.Components 2 2⍴2'
+        {}'empty region rejected' Assert Fails '4 #.ImageOps.Components 0 2⍴0'
+        {}'negative seed rejected' Assert Fails '(4 (¯1 0)) #.ImageOps.FloodFill 2 2⍴1'
+        {}'out of bounds seed rejected' Assert Fails '(4 (2 0)) #.ImageOps.FloodFill 2 2⍴1'
+        {}'fractional seed rejected' Assert Fails '(4 (0.5 0)) #.ImageOps.FloodFill 2 2⍴1'
+        ⎕IO←1
+        result←4 #.ImageOps.Components 2 2⍴1
+        {}'components origin independence' Assert (2 2⍴1)≡result.labels
+        {}'fill origin independence' Assert (2 2⍴1)≡(4 (0 0)) #.ImageOps.FloodFill 2 2⍴1
+        ⎕IO←0
+        ⎕←'PASS: ',(⍕≢spec.regions),' region cases against BFS; traces, areas and validation'
         {}(⎕JSON spec) ⎕NPUT (folder,'/verified.json') 1
         kernel←#.ImageOps.GaussianKernel 4 2
         {}'kernel sums to one' Assert 1 Close +/kernel

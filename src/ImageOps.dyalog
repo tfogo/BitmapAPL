@@ -189,4 +189,76 @@
         :EndIf
         R.output←(⍴plane)⍴R.mapping[values]
     ∇
+    ∇ R←CheckMask mask
+        :If (2≠≢⍴mask)∨0∊⍴mask
+            ⎕SIGNAL 11
+        :EndIf
+        :If ~∧/,mask∊0 1
+            ⎕SIGNAL 11
+        :EndIf
+        R←1
+    ∇
+
+    ∇ R←ConnectivityFootprint connectivity
+        :If 0≠≢⍴connectivity
+            ⎕SIGNAL 11
+        :EndIf
+        :Select connectivity
+        :Case 4
+            R←'cross'
+        :Case 8
+            R←'square'
+        :Else
+            ⎕SIGNAL 11
+        :EndSelect
+    ∇
+
+    ∇ R←options FloodFill mask;connectivity;seed;footprint;start;Grow;⎕IO
+        ⍝ Seed is a zero-based (row column), independent of caller index origin.
+        ⎕IO←0
+        {}CheckMask mask
+        connectivity seed←options
+        footprint←ConnectivityFootprint connectivity
+        :If (1≠≢⍴seed)∨2≠≢seed
+            ⎕SIGNAL 11
+        :EndIf
+        :If ~∧/(seed≥0)∧(seed<⍴mask)∧seed=⌊seed
+            ⎕SIGNAL 11
+        :EndIf
+        start←(⍴mask)⍴0
+        start[⊂seed]←mask[⊂seed]
+        Grow←{mask∧('dilate' footprint) Morphology ⍵}
+        R←(Grow⍣≡) start
+    ∇
+
+    ∇ R←connectivity LabelStep labels;footprint;selection;h;w;padded;sentinel;⎕IO
+        ⍝ One synchronous propagation step. Zero is background; IDs are 1..H×W.
+        ⎕IO←0
+        footprint←ConnectivityFootprint connectivity
+        h w←⍴labels
+        selection←9⍴1
+        :If footprint≡'cross'
+            selection←0 1 0 1 1 1 0 1 0
+        :EndIf
+        sentinel←1+h×w
+        padded←{(1 'zero') PadRow ⍵}⍤1⊢labels
+        padded←⍉{(1 'zero') PadRow ⍵}⍤1⊢⍉padded
+        R←{v←selection/,⍵ ⋄ ⌊/v+sentinel×v=0}⌺3 3⊢padded
+        R←(labels>0)×R[1+⍳h;1+⍳w]
+    ∇
+
+    ∇ R←connectivity Components mask;initial;Spread;flat;⎕IO
+        ⎕IO←0
+        {}CheckMask mask
+        {}ConnectivityFootprint connectivity
+        initial←mask×(⍴mask)⍴1+⍳≢,mask
+        Spread←{connectivity LabelStep ⍵}
+        R←⎕NS ''
+        R.labels←(Spread⍣≡) initial
+        flat←,R.labels
+        R.ids←∪flat/⍨flat>0
+        R.ids←R.ids[⍋R.ids]
+        R.areas←{+/flat=⍵}¨R.ids
+        R.count←≢R.ids
+    ∇
 :EndNamespace

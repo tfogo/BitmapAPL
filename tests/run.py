@@ -87,6 +87,36 @@ def equalize_reference(plane):
                 output=[mapping[v] for v in values])
 
 
+def regions_reference(plane, connectivity, seed):
+    h, w = len(plane), len(plane[0])
+    pixels = sum(plane, [])
+    def distances(start):
+        if not pixels[start]:
+            return {}
+        found, queue = {start: 0}, [start]
+        for p in queue:
+            y, x = divmod(p, w)
+            for dy, dx in [(-1,0),(1,0),(0,-1),(0,1)] + ([(-1,-1),(-1,1),(1,-1),(1,1)] if connectivity==8 else []):
+                yy, xx = y+dy, x+dx
+                q = yy*w+xx
+                if 0 <= yy < h and 0 <= xx < w and pixels[q] and q not in found:
+                    found[q] = found[p]+1
+                    queue.append(q)
+        return found
+    labels, ids, areas = [0]*len(pixels), [], []
+    for i,v in enumerate(pixels):
+        if v and not labels[i]:
+            region = distances(i)
+            ids.append(i+1)
+            areas.append(len(region))
+            for p in region:
+                labels[p] = i+1
+    distance = distances(seed[0]*w+seed[1])
+    steps = [[int(p in distance and distance[p] <= n) for p in range(len(pixels))]
+             for n in range(max(distance.values(),default=0)+1)]
+    return dict(labels=labels, ids=ids, areas=areas, count=len(ids), fill=steps[-1], fillSteps=steps)
+
+
 def main():
     if not shutil.which('dyalog'):
         raise SystemExit('Dyalog is missing from PATH; see docs/development.md')
@@ -162,7 +192,17 @@ def main():
         for plane in contrast_planes:
             equalizations.append(dict(shape=[len(plane),len(plane[0])],pixels=sum(plane,[]),
                                        **equalize_reference(plane)))
-        (folder / 'oracle.json').write_text(json.dumps(dict(cases=cases, edges=edge_cases, medians=medians, morphs=morphs, equalizations=equalizations, pixels=pixels,
+        regions = []
+        region_planes = shapes + [[[1,0,0],[0,1,0],[0,0,1]],
+                                 [[1,1,1,1,1],[0,0,0,0,1],[1,1,1,1,1]],
+                                 [[1,0,0,1],[1,1,0,1],[0,1,0,0]]]
+        for plane in region_planes:
+            for connectivity in [4,8]:
+                for seed in [(0,0),(len(plane)-1,len(plane[0])-1)]:
+                    regions.append(dict(shape=[len(plane),len(plane[0])],pixels=sum(plane,[]),
+                                        connectivity=connectivity,seed=seed,
+                                        **regions_reference(plane,connectivity,seed)))
+        (folder / 'oracle.json').write_text(json.dumps(dict(cases=cases, edges=edge_cases, medians=medians, morphs=morphs, equalizations=equalizations, regions=regions, pixels=pixels,
                                                           invalid=list(invalid))))
         escaped = str(folder).replace("'", "''")
         runner = folder / 'run.apls'
@@ -192,7 +232,7 @@ def main():
             target = ROOT / 'web' / 'fixtures' / 'apl-reference.json'
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(json.dumps(dict(schema=1, generator='Dyalog ImageOps',
-                cases=verified['cases'], edges=verified['edges'], medians=verified['medians'], morphs=verified['morphs'], equalizations=verified['equalizations']), separators=(',', ':')) + '\n')
+                cases=verified['cases'], edges=verified['edges'], medians=verified['medians'], morphs=verified['morphs'], equalizations=verified['equalizations'], regions=verified['regions']), separators=(',', ':')) + '\n')
             print('Exported Dyalog results to web/fixtures/apl-reference.json')
         print('PASS: independent BMP byte checks, round trips, clipping, and blur output')
 

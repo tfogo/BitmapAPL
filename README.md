@@ -141,6 +141,23 @@ Input must be a nonempty matrix of integers from 0 to 255. The mapping subtracts
 
 This is a global grayscale operation: the mapping depends on the whole image. It can amplify noise or produce harsh contrast, and it does not guarantee a flat output histogram. Applying it independently to RGB channels can change colors; color equalization is outside this API. Tests cover 28 independent oracle cases, intermediate counts/mappings, monotonicity, constant images, and invalid inputs.
 
+## Flood fill and connected regions
+
+```apl
+filled ← (4 (1 1)) ImageOps.FloodFill mask
+regions ← 8 ImageOps.Components mask
+regions.labels           ⍝ zero for background, positive IDs for regions
+regions.ids              ⍝ sorted region IDs
+regions.areas            ⍝ pixel counts in that order
+regions.count
+```
+
+Both functions accept nonempty binary matrices and connectivity 4 (shared sides) or 8 (sides and corners). The exterior is background; opposite image edges never connect. Seeds are always zero-based `(row column)`, regardless of the caller’s `⎕IO`. A seed on background returns an all-zero fill; out-of-bounds or fractional coordinates are rejected.
+
+Components use synchronous minimum-label propagation until stable. Each foreground pixel starts with its one-based row-major position; the smallest ID in a region survives. IDs are deterministic but need not be consecutive. `LabelStep` exposes one propagation step for teaching; it expects a nonempty label matrix with zeros for background and foreground IDs in `1…H×W`. Flood fill repeats masked dilation until unchanged. Both algorithms take O(ND) work, where D is the number of propagation rounds; a long narrow path can make this O(N²). They prioritize visible array operations over queue-based performance.
+
+The 288 oracle cases include every 2×3 binary mask, diagonal contacts, a winding path, isolated/background seeds, border shapes, and both connectivities. Python breadth-first search checks labels, counts, areas, and fill distances; the browser is checked against every exported Dyalog step. Browser teaching functions retain traces, so use them only for small examples; the APL functions retain only the working arrays.
+
 ## Animated explainer
 
 ```sh

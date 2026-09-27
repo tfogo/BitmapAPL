@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {blur, sobel, unsharp, transform, gaussian, median, morphology, equalize} from '../web/model.mjs';
+import {blur, sobel, unsharp, transform, gaussian, median, morphology, equalize, floodFill, components} from '../web/model.mjs';
 const reference = JSON.parse(readFileSync(new URL('../web/fixtures/apl-reference.json', import.meta.url)));
 function close(actual, expected) {
   assert.equal(actual.length, expected.length);
@@ -36,5 +36,15 @@ test('28 equalization cases agree with executed Dyalog, including intermediate a
     const result = equalize(c.pixels, ...c.shape);
     close(result.histogram,c.aplHistogram); close(result.cumulative,c.aplCumulative);
     close(result.mapping,c.aplMapping); close(result.output,c.aplOutput);
+  }
+});
+
+test('288 region cases and every propagation step agree with executed Dyalog', () => {
+  for (const c of reference.regions) {
+    const fill=floodFill(c.pixels,...c.shape,c.seed,c.connectivity);
+    const regions=components(c.pixels,...c.shape,c.connectivity);
+    close(fill.output,c.aplFill); assert.deepEqual(fill.steps,c.aplFillSteps);
+    close(regions.labels,c.aplLabels); close(regions.ids,c.aplIds); close(regions.areas,c.aplAreas);
+    assert.equal(regions.count,c.aplCount); assert.deepEqual(regions.steps,c.aplLabelSteps);
   }
 });
